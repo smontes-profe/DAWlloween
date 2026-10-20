@@ -173,3 +173,29 @@ Review phase:
 - Developer agents may work only in `implement` for assigned tasks.
 - The developer owns final approval, especially for changes that affect scope or behavior.
 
+## DAWlloween Project Guidelines & Constraints
+
+1. **Strict Tech Stack**:
+   - Use exclusively **Vanilla JavaScript (ES Modules)**, **HTML5 Canvas**, and **Vanilla CSS**.
+   - Do not introduce heavy frontend frameworks or CSS libraries (React, Vue, Bootstrap, Tailwind) unless explicitly requested by the PM. Modern Vanilla CSS (CSS Grid, Flexbox, CSS Variables, `clamp()`, media queries) must be used to preserve simplicity and educational clarity.
+2. **Responsive Design & Device Targets**:
+   - The main game and reaction screens must be responsive across standard desktop resolutions (1080p, 720p, laptop screens).
+   - The **Hall of Fame** view **must be fully responsive on mobile devices** as well, allowing students to access and share their reactions from their phones at home.
+3. **Zero Local Persistence**:
+   - Do not store photos or user data in `localStorage`, `sessionStorage`, or local files.
+   - Handle network microcuts or Supabase errors via automatic periodic retries and user-facing visual alerts/toasts.
+4. **Usability & Accessibility (a11y)**:
+   - Follow web accessibility best practices: semantic HTML, adequate color contrast (vital for dark Halloween themes), clear focus states, intuitive UI feedback, and keyboard navigation where appropriate.
+5. **Clean Code & Pedagogical Design Patterns**:
+   - Maintain clean, modular, and well-commented code that serves as an exemplary educational reference for 1st and 2nd year DAW students.
+   - Proactively apply well-known software design patterns where beneficial:
+     - **State Pattern**: For SPA navigation and game state management.
+     - **Observer / Event Bus (Pub-Sub)**: For decoupling events between game, jumpscare, webcam capture, and UI notifications.
+     - **Module / Singleton Pattern**: For services (`supabase.js`, `alerts.js`, `camera.js`).
+     - **Factory Pattern**: For spawning game entities (player, enemies).
+6. **Halloween Atmosphere & Aesthetics**:
+   - Maintain a cohesive, immersive aesthetic (deep dark palette, pumpkin orange, ghost green, eerie purple, atmospheric micro-animations and typography).
+7. **Code Language Standards (UK English)**:
+   - All code entities (variables, functions, classes, constants), code comments, docstrings, commit messages, and internal identifiers must be strictly written in **UK English (`en-GB`)** (e.g., `initialise`, `colour`, `synchronise`, `optimise`).
+
+
