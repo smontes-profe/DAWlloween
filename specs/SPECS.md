@@ -7,7 +7,7 @@ Una aplicación web interactiva y temática para celebrar Halloween en las aulas
 1. **Mini-juego señuelo (Web)**: Un juego ultra-sencillo ejecutable en navegador (estilo *survival/Vampire Survivors* minimalista con movimiento básico y oleadas simples), cuya finalidad principal es mantener al jugador concentrado durante 30–60 segundos.
 2. **Momento Jumpscare y captura**: Disparo sorpresivo de un susto audiovisual (vídeo/animación rápida y sonido estridente) sincronizado con la captura automática e instantánea de un fotograma de la webcam del jugador.
 3. **Pantalla de reacción y registro**: Muestra inmediatamente la fotografía de la reacción del jugador, permitiéndole introducir su nombre o apodo para inmortalizarlo.
-4. **Persistencia Cloud (Free Tier) & Contingencia**: Subida y almacenamiento de la imagen y metadatos (nombre, fecha/hora) a un servicio de base de datos y almacenamiento gratuito (ej. Supabase / Vercel Blob o similar). Incluye alternativa de contingencia manual/local en caso de fallos de red.
+4. **Persistencia Cloud (Free Tier) & Resiliencia**: Subida y almacenamiento de la imagen y metadatos (nombre, fecha/hora) a Supabase (Storage + Database). En caso de fallo o microcorte de red, la app reintenta la subida automáticamente y muestra alertas en pantalla sin guardar nada en local.
 5. **Hall of Fame (Galería del Terror)**: Pantalla/mural público proyectable en el aula que expone el mosaico con las fotos y nombres de todas las personas que han participado.
 
 ## Why
@@ -28,7 +28,7 @@ Una aplicación web interactiva y temática para celebrar Halloween en las aulas
 - **Arquitectura Conceptual**:
   - Frontend SPA ligero (HTML5 Canvas/JS para el juego y acceso a `navigator.mediaDevices.getUserMedia`).
   - Backend/BaaS gratuito para Database y Object Storage (ej. Supabase o Firebase).
-  - Mecanismo de fallback local (`localStorage` / descarga de ficheros) ante fallos de conectividad en el aula.
+  - Sistema de reintentos automáticos con alertas visuales ante microcortes o fallos temporales de conexión en el aula (cero persistencia local).
 
 ## Non-Goals
 
@@ -41,5 +41,5 @@ Una aplicación web interactiva y temática para celebrar Halloween en las aulas
 
 1. **Privacidad y Permisos**: Notificación previa lúdica y clara para el consentimiento del uso de la cámara en el contexto de la actividad escolar.
 2. **Cero coste (Free Tier)**: Toda la infraestructura utilizada debe operar al 100% dentro de planes gratuitos.
-3. **Resiliencia ante fallos de red**: Capacidad de guardar localmente los datos y fotografías si se corta la conexión en el centro.
+3. **Resiliencia ante fallos de red**: Reintentos automáticos y alertas visuales claras si se corta la conexión; sin almacenamiento local.
 4. **Alta rotación y fluidez**: Ciclo completo de experiencia por jugador de máximo 1 a 2 minutos para permitir que participen muchos alumnos.
