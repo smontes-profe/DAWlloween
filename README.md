@@ -5,7 +5,6 @@
 [![Vanilla CSS](https://img.shields.io/badge/CSS3-Modern%20Responsive-1572B6?logo=css3&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/CSS)
 [![Supabase](https://img.shields.io/badge/Backend-Supabase%20Free%20Tier-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
 [![Methodology](https://img.shields.io/badge/Methodology-Spec--Driven%20Agile-purple)](#methodology--sdd)
-[![Language](https://img.shields.io/badge/Code%20Language-UK%20English-012169)](#code-standards)
 
 An interactive, spine-chilling Halloween Single Page Application (SPA) designed as an attraction for vocational training students (*DAW - Desarrollo de Aplicaciones Web*) at **Ilerna Sevilla**.
 
