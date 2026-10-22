@@ -12,8 +12,8 @@
 ## Task Backlog
 
 ### US1.1: Sistema de Diseño Visual y Guía de Estilo Frontend
-- [-] [T0] [US1.1] Create `docs/DESIGN_GUIDE.md` with complete art direction, visual specification, CSS variable definitions (Halloween palette, typography, glow/elevations, micro-animations, responsive layout rules for desktop and mobile Hall of Fame), and component guidelines.
-- [ ] [T1] [US1.1] Implement core CSS design system in `styles/main.css` with CSS custom properties (`--colour-bg`, `--colour-pumpkin`, `--colour-ectoplasm`, `--colour-spectral-purple`, etc.), Google Fonts imports, CSS reset, atmospheric keyframe animations, and base utility classes.
+- [<] [T0] [US1.1] Create `docs/DESIGN_GUIDE.md` with complete art direction, visual specification, CSS variable definitions (Halloween palette, typography, glow/elevations, micro-animations, responsive layout rules for desktop and mobile Hall of Fame), and component guidelines.
+- [-] [T1] [US1.1] Implement core CSS design system in `styles/main.css` with CSS custom properties (`--colour-bg`, `--colour-pumpkin`, `--colour-ectoplasm`, `--colour-spectral-purple`, etc.), Google Fonts imports, CSS reset, atmospheric keyframe animations, and base utility classes.
 
 ### US1.2: Estructura SPA y Pantalla de Inicio / Permiso de Cámara
 - [ ] [T2] [US1.2] Create root HTML shell `index.html` with semantic structure, accessibility attributes, viewport meta tags, stylesheet links, and root mount container.
