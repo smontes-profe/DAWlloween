@@ -13,10 +13,10 @@
 
 ### US1.1: Sistema de Diseño Visual y Guía de Estilo Frontend
 - [<] [T0] [US1.1] Create `docs/DESIGN_GUIDE.md` with complete art direction, visual specification, CSS variable definitions (Halloween palette, typography, glow/elevations, micro-animations, responsive layout rules for desktop and mobile Hall of Fame), and component guidelines.
-- [-] [T1] [US1.1] Implement core CSS design system in `styles/main.css` with CSS custom properties (`--colour-bg`, `--colour-pumpkin`, `--colour-ectoplasm`, `--colour-spectral-purple`, etc.), Google Fonts imports, CSS reset, atmospheric keyframe animations, and base utility classes.
+- [<] [T1] [US1.1] Implement core CSS design system in `styles/main.css` with CSS custom properties (`--colour-bg`, `--colour-pumpkin`, `--colour-ectoplasm`, `--colour-spectral-purple`, etc.), Google Fonts imports, CSS reset, atmospheric keyframe animations, and base utility classes.
 
 ### US1.2: Estructura SPA y Pantalla de Inicio / Permiso de Cámara
-- [ ] [T2] [US1.2] Create root HTML shell `index.html` with semantic structure, accessibility attributes, viewport meta tags, stylesheet links, and root mount container.
+- [-] [T2] [US1.2] Create root HTML shell `index.html` with semantic structure, accessibility attributes, viewport meta tags, stylesheet links, and root mount container.
 - [ ] [T3] [US1.2] Implement Event Bus module (`src/utils/eventBus.js`) and UI notification service (`src/ui/alerts.js`) for toast notifications and decoupled messaging across the application.
 - [ ] [T4] [US1.2] Implement client-side SPA State Router (`src/app.js`) with hash-based routing and view rendering lifecycle supporting `#home`, `#play`, `#screamer`, `#register`, and `#hall-of-fame`.
 - [ ] [U5] [US1.2] Implement Camera service (`src/screamer/camera.js`) to handle webcam permission handshake (`getUserMedia`), stream lifecycle, and friendly UI alerts upon denail or errors.
