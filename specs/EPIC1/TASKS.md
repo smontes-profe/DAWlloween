@@ -17,9 +17,9 @@
 
 ### US1.2: Estructura SPA y Pantalla de Inicio / Permiso de Cámara
 - [<] [T2] [US1.2] Create root HTML shell `index.html` with semantic structure, accessibility attributes, viewport meta tags, stylesheet links, and root mount container.
-- [-] [T3] [US1.2] Implement Event Bus module (`src/utils/eventBus.js`) and UI notification service (`src/ui/alerts.js`) for toast notifications and decoupled messaging across the application.
-- [ ] [T4] [US1.2] Implement client-side SPA State Router (`src/app.js`) with hash-based routing and view rendering lifecycle supporting `#home`, `#play`, `#screamer`, `#register`, and `#hall-of-fame`.
-- [ ] [U5] [US1.2] Implement Camera service (`src/screamer/camera.js`) to handle webcam permission handshake (`getUserMedia`), stream lifecycle, and friendly UI alerts upon denail or errors.
+- [<] [T3] [US1.2] Implement Event Bus module (`src/utils/eventBus.js`) and UI notification service (`src/ui/alerts.js`) for toast notifications and decoupled messaging across the application.
+- [<] [T4] [US1.2] Implement client-side SPA State Router (`src/app.js`) with hash-based routing and view rendering lifecycle supporting `#home`, `#play`, `#screamer`, `#register`, and `#hall-of-fame`.
+- [-] [T5] [US1.2] Implement Camera service (`src/screamer/camera.js`) to handle webcam permission handshake (`getUserMedia`), stream lifecycle, and friendly UI alerts upon denial or errors.
 - [ ] [T6] [US1.2] Build Welcome view (`src/views/welcomeView.js`) with responsive Halloween UI,  activity overview, camera calibration trigger button, and seamless transition to `#play`.
 
 ### US1.3: Motor Canvas 2D, Movimiento y Arquitectura Extensible
