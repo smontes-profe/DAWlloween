@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="DAWlloween - An interactive 2D Halloween survival arcade experience and educational showcase for DAW web development students.">
+  <meta name="theme-color" content="#07050a">
+  <meta name="color-scheme" content="dark">
+  <title>DAWlloween | 2D Survival &amp; Hall of Fame</title>
+
+  <!-- Favicon (Thematic Pumpkin SVG) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎃</text></svg>">
+
+  <!-- Google Fonts Preconnect & Stylesheets -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Creepster&family=Outfit:wght@300;400;500;600;700;900&family=Press+Start+2P&display=swap">
+
+  <!-- Global Design System & Core Stylesheet -->
+  <link rel="stylesheet" href="./styles/main.css">
+</head>
+<body>
+  <!-- Semantic Header / Brand Shell -->
+  <header class="site-header" role="banner">
+    <div class="container site-header__inner">
+      <a href="#home" class="brand-logo" aria-label="DAWlloween Home">
+        <span class="brand-logo__icon" aria-hidden="true">🎃</span>
+        <span class="brand-logo__text text-display flicker">DAWlloween</span>
+      </a>
+      <nav class="site-nav" aria-label="Main Navigation">
+        <a href="#home" class="nav-link" id="nav-link-home">Home</a>
+        <a href="#hall-of-fame" class="nav-link" id="nav-link-hall">Hall of Fame</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main SPA Dynamic View Mount Container -->
+  <main id="app" class="app-container" role="main" aria-live="polite">
+    <!-- Dynamic view templates (Welcome, Game Canvas, Screamer, Registration, Hall of Fame) will mount here -->
+  </main>
+
+  <!-- Accessible Toast & Notification Live Region -->
+  <aside id="toast-container" class="toast-container" role="region" aria-label="System Notifications" aria-live="assertive" aria-atomic="true"></aside>
+
+  <!-- Semantic Footer Shell -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container site-footer__inner">
+      <p class="site-footer__text">
+        &copy; 2026 <strong>DAWlloween</strong> &bull; Built with Vanilla JavaScript, HTML5 Canvas &amp; CSS.
+      </p>
+      <p class="site-footer__subtext text-muted">
+        Pedagogical project for 1st &amp; 2nd year DAW students. No local persistence.
+      </p>
+    </div>
+  </footer>
+
+  <!-- Fallback for JavaScript-disabled environments -->
+  <noscript>
+    <div class="noscript-banner panel-surface container" role="alert">
+      <h2 class="text-display text-pumpkin">JavaScript Required</h2>
+      <p>DAWlloween requires JavaScript to be enabled in order to run the 2D Canvas engine, camera calibration, and interactive views.</p>
+    </div>
+  </noscript>
+
+  <!-- Modular Application Entry Point -->
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>

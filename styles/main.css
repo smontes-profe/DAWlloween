@@ -471,3 +471,99 @@ a:hover {
   white-space: nowrap;
   border: 0;
 }
+
+/* --------------------------------------------------------------------------
+   8. Application Shell Layout (Header, View Mount, Footer)
+   -------------------------------------------------------------------------- */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background-color: rgba(7, 5, 10, 0.75);
+  border-bottom: 1px solid var(--colour-border-subtle);
+  padding: var(--space-sm) 0;
+}
+
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  text-decoration: none;
+}
+
+.brand-logo__icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.brand-logo__text {
+  font-size: var(--font-size-h2);
+  color: var(--colour-pumpkin);
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.nav-link {
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  color: var(--colour-text-secondary);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.nav-link:hover,
+.nav-link--active {
+  color: var(--colour-pumpkin-bright);
+  background-color: rgba(255, 117, 24, 0.08);
+}
+
+.app-container {
+  min-height: calc(100vh - 140px);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: 100%;
+}
+
+.site-footer {
+  border-top: 1px solid var(--colour-border-subtle);
+  padding: var(--space-lg) 0;
+  background-color: var(--colour-bg-abyss);
+  margin-top: auto;
+}
+
+.site-footer__inner {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.site-footer__text {
+  font-size: var(--font-size-small);
+  color: var(--colour-text-secondary);
+}
+
+.site-footer__subtext {
+  font-size: var(--font-size-small);
+}
+
+.noscript-banner {
+  margin-top: var(--space-xl);
+  margin-bottom: var(--space-xl);
+  text-align: center;
+}
+
