@@ -23,7 +23,7 @@
 - [<] [T6] [US1.2] Build Welcome view (`src/views/welcomeView.js`) with responsive Halloween UI,  activity overview, camera calibration trigger button, and seamless transition to `#play`.
 
 ### US1.3: Motor Canvas 2D, Movimiento y Arquitectura Extensible
-- [-] [T7] [US1.3] Implement Game View component (`src/views/gameView.js`) and game styles (`styles/game.css`) containing the responsive `<canvas>` element and HUD overlay.
+- [<] [T7] [US1.3] Implement Game View component (`src/views/gameView.js`) and game styles (`styles/game.css`) containing the responsive `<canvas>` element and HUD overlay.
 - [ ] [T8] [US1.3] Implement Player entity and extensible Entity Factory (`src/game/entities.js`) with vector maths, arena collision boundaries, and 8-directional movement logic.
 - [ ] [T9] [US1.3] Implement 60 FPS Canvas Game Engine (`src/game/engine.js`) with fixed/delta-time game loop, keyboard input management (WASD/Arrows), entity update/render lifecycle, and unit tests for vector and boundary calculations.
 

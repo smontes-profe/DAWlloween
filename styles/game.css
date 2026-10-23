@@ -1,0 +1,198 @@
+/* ==========================================================================
+   DAWlloween - Game Canvas Arena & HUD Overlay Styles
+   Standard: UK English (en-GB).
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Game Arena Layout Container
+   -------------------------------------------------------------------------- */
+.game-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--space-md) var(--space-sm);
+  position: relative;
+}
+
+.game-arena-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 1120px;
+  aspect-ratio: 16 / 9;
+  background-color: var(--colour-bg-abyss);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--colour-pumpkin);
+  box-shadow: 0 0 24px var(--colour-pumpkin-glow), inset 0 0 30px rgba(7, 5, 10, 0.9);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Canvas element filling the arena */
+#game-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+/* Hidden video element keeping the webcam stream active in memory */
+.camera-stream-hidden {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+   2. Heads-Up Display (HUD) Overlay
+   -------------------------------------------------------------------------- */
+.game-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-md);
+  z-index: 20;
+}
+
+/* Top HUD bar: Timer & Utilities */
+.game-hud__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* Survival Countdown Timer */
+.hud-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  background-color: rgba(7, 5, 10, 0.85);
+  border: 1px solid var(--colour-border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-md);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-card);
+}
+
+.hud-timer__icon {
+  font-size: 1.25rem;
+}
+
+.hud-timer__digits {
+  font-family: var(--font-family-arcade);
+  font-size: var(--font-size-h3);
+  color: var(--colour-pumpkin-bright);
+  letter-spacing: 0.1em;
+  min-width: 70px;
+  text-align: center;
+}
+
+/* High tension / final countdown styling */
+.hud-timer--urgent .hud-timer__digits {
+  color: var(--colour-blood-red);
+  text-shadow: 0 0 12px var(--colour-blood-glow);
+  animation: flicker 0.6s infinite alternate;
+}
+
+/* Bottom HUD bar: Ammo cylinder & Status */
+.game-hud__bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* 6-Round Cylinder Display */
+.hud-ammo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  background-color: rgba(7, 5, 10, 0.85);
+  border: 1px solid var(--colour-border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-md);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow-card);
+}
+
+.hud-ammo__cylinder {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+.hud-bullet {
+  display: inline-block;
+  width: 12px;
+  height: 24px;
+  background-color: var(--colour-pumpkin);
+  border-radius: 4px 4px 1px 1px;
+  box-shadow: 0 0 8px var(--colour-pumpkin-glow);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.hud-bullet--spent {
+  opacity: 0.2;
+  box-shadow: none;
+  background-color: var(--colour-text-muted);
+  transform: scaleY(0.75);
+}
+
+.hud-ammo__label {
+  font-family: var(--font-family-arcade);
+  font-size: var(--font-size-small);
+  color: var(--colour-text-secondary);
+  letter-spacing: 0.05em;
+}
+
+.hud-ammo__label--reloading {
+  color: var(--colour-blood-red);
+  animation: flicker 0.8s infinite alternate;
+}
+
+/* Interactive HUD control buttons */
+.hud-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  pointer-events: auto;
+}
+
+.hud-btn {
+  background-color: rgba(7, 5, 10, 0.8);
+  border: 1px solid var(--colour-border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--colour-text-secondary);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  transition: color var(--transition-fast), border-color var(--transition-fast), background-color var(--transition-fast);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.hud-btn:hover {
+  color: var(--colour-pumpkin);
+  border-color: var(--colour-pumpkin);
+  background-color: rgba(255, 117, 24, 0.1);
+}
+
+.hud-btn:focus-visible {
+  outline: 2px solid var(--colour-border-focus);
+  outline-offset: 2px;
+}
