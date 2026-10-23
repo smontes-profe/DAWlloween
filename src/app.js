@@ -8,6 +8,7 @@
 
 import { eventBus } from './utils/eventBus.js';
 import { alerts } from './ui/alerts.js';
+import { welcomeView } from './views/welcomeView.js';
 
 /**
  * Client-side State Router managing view transitions and component lifecycles.
@@ -284,7 +285,7 @@ function createPlaceholderView(routeName, description) {
  */
 export function registerApplicationRoutes(router) {
   router
-    .register('#home', createPlaceholderView('Welcome to DAWlloween', '2D Survival arcade experience. Calibration & instructions.'))
+    .register('#home', welcomeView)
     .register('#play', createPlaceholderView('Survival Arena', 'HTML5 Canvas 2D engine running at 60 FPS.'))
     .register('#screamer', createPlaceholderView('Reaction Capture', 'Audiovisual surprise & webcam capture.'))
     .register('#register', createPlaceholderView('Register Hall of Fame', 'Review captured reaction and register your nickname.'))

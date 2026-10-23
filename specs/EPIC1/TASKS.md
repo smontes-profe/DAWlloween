@@ -19,12 +19,12 @@
 - [<] [T2] [US1.2] Create root HTML shell `index.html` with semantic structure, accessibility attributes, viewport meta tags, stylesheet links, and root mount container.
 - [<] [T3] [US1.2] Implement Event Bus module (`src/utils/eventBus.js`) and UI notification service (`src/ui/alerts.js`) for toast notifications and decoupled messaging across the application.
 - [<] [T4] [US1.2] Implement client-side SPA State Router (`src/app.js`) with hash-based routing and view rendering lifecycle supporting `#home`, `#play`, `#screamer`, `#register`, and `#hall-of-fame`.
-- [-] [T5] [US1.2] Implement Camera service (`src/screamer/camera.js`) to handle webcam permission handshake (`getUserMedia`), stream lifecycle, and friendly UI alerts upon denial or errors.
-- [ ] [T6] [US1.2] Build Welcome view (`src/views/welcomeView.js`) with responsive Halloween UI,  activity overview, camera calibration trigger button, and seamless transition to `#play`.
+- [<] [T5] [US1.2] Implement Camera service (`src/screamer/camera.js`) to handle webcam permission handshake (`getUserMedia`), stream lifecycle, and friendly UI alerts upon denial or errors.
+- [<] [T6] [US1.2] Build Welcome view (`src/views/welcomeView.js`) with responsive Halloween UI,  activity overview, camera calibration trigger button, and seamless transition to `#play`.
 
 ### US1.3: Motor Canvas 2D, Movimiento y Arquitectura Extensible
-- [ ] [T7] [US1.3] Implement Game View component (`src/views/gameView.js`) and game styles (`styles/game.css`) containing the responsive `<canvas>` element and HUD overlay.
-- [ ] [U8] [US1.3] Implement Player entity and extensible Entity Factory (`src/game/entities.js`) with vector maths, arena collision boundaries, and 8-directional movement logic.
+- [-] [T7] [US1.3] Implement Game View component (`src/views/gameView.js`) and game styles (`styles/game.css`) containing the responsive `<canvas>` element and HUD overlay.
+- [ ] [T8] [US1.3] Implement Player entity and extensible Entity Factory (`src/game/entities.js`) with vector maths, arena collision boundaries, and 8-directional movement logic.
 - [ ] [T9] [US1.3] Implement 60 FPS Canvas Game Engine (`src/game/engine.js`) with fixed/delta-time game loop, keyboard input management (WASD/Arrows), entity update/render lifecycle, and unit tests for vector and boundary calculations.
 
 ### US1.4: Apuntado con Ratón, Disparo y Sistema de Recarga
