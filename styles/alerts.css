@@ -1,0 +1,182 @@
+/* ==========================================================================
+   DAWlloween - UI Notification & Toast Alert Stylesheet
+   Strict UK English naming standards.
+   Thematic Halloween aesthetic: glassmorphism, spectral glow, accessibility.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Toast Live Region Host Container
+   -------------------------------------------------------------------------- */
+.toast-container {
+  position: fixed;
+  top: var(--space-lg);
+  right: var(--space-lg);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-width: 420px;
+  width: calc(100% - 2 * var(--space-lg));
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+   2. Core Toast Card Base
+   -------------------------------------------------------------------------- */
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(22, 18, 36, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--colour-border-subtle);
+  box-shadow: var(--shadow-card);
+  font-family: var(--font-family-body);
+  color: var(--colour-text-primary);
+  animation: toast-slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.toast--closing {
+  animation: toast-slide-out 0.25s cubic-bezier(0.4, 0, 1, 1) forwards !important;
+}
+
+/* --------------------------------------------------------------------------
+   3. Thematic Variations & Glows
+   -------------------------------------------------------------------------- */
+
+/* Informational (Arcane / Spectral Purple) */
+.toast--info {
+  border-color: var(--colour-spectral-purple);
+  box-shadow: var(--shadow-card), var(--shadow-spectral-glow);
+}
+
+.toast--info .toast__title {
+  color: var(--colour-spectral-light);
+}
+
+/* Warning (Jack-o'-Lantern Orange) */
+.toast--warning {
+  border-color: var(--colour-pumpkin);
+  box-shadow: var(--shadow-card), var(--shadow-pumpkin-glow);
+}
+
+.toast--warning .toast__title {
+  color: var(--colour-pumpkin-bright);
+}
+
+/* Error (Blood Red / Critical) */
+.toast--error {
+  border-color: var(--colour-blood-red);
+  box-shadow: var(--shadow-card), var(--shadow-blood-glow);
+}
+
+.toast--error .toast__title {
+  color: var(--colour-blood-red);
+}
+
+/* Success (Ectoplasmic Slime Green) */
+.toast--success {
+  border-color: var(--colour-ectoplasm);
+  box-shadow: var(--shadow-card), var(--shadow-ectoplasm-glow);
+}
+
+.toast--success .toast__title {
+  color: var(--colour-ectoplasm);
+}
+
+/* --------------------------------------------------------------------------
+   4. Toast Internal Components
+   -------------------------------------------------------------------------- */
+.toast__icon {
+  font-size: 1.35rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+.toast__content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.toast__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-bottom: 2px;
+}
+
+.toast__message {
+  font-size: 0.875rem;
+  color: var(--colour-text-secondary);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.toast__close {
+  background: transparent;
+  border: none;
+  color: var(--colour-text-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+  flex-shrink: 0;
+  margin-left: var(--space-xs);
+}
+
+.toast__close:hover {
+  color: var(--colour-text-primary);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.toast__close:focus-visible {
+  outline: 2px solid var(--colour-pumpkin-bright);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   5. Keyframe Animations
+   -------------------------------------------------------------------------- */
+@keyframes toast-slide-in {
+  from {
+    transform: translateX(115%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-slide-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(115%);
+    opacity: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   6. Mobile & Small Screen Adaptability
+   -------------------------------------------------------------------------- */
+@media (max-width: 600px) {
+  .toast-container {
+    top: var(--space-sm);
+    right: var(--space-sm);
+    left: var(--space-sm);
+    width: auto;
+    max-width: none;
+  }
+}
