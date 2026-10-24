@@ -196,3 +196,15 @@
   outline: 2px solid var(--colour-border-focus);
   outline-offset: 2px;
 }
+
+.hud-btn--muted {
+  color: var(--colour-blood-light);
+  border-color: rgba(138, 3, 3, 0.6);
+  background-color: rgba(138, 3, 3, 0.15);
+}
+
+.hud-btn--muted:hover {
+  color: #ff9999;
+  border-color: var(--colour-blood-glow);
+  background-color: rgba(138, 3, 3, 0.28);
+}

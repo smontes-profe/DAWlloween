@@ -8,6 +8,7 @@
 
 import { cameraService } from '../screamer/camera.js';
 import { alerts } from '../ui/alerts.js';
+import { audioService } from '../services/audio.js';
 
 /**
  * Welcome View component managing the landing screen lifecycle.
@@ -204,6 +205,11 @@ export class WelcomeView {
     }
 
     try {
+      // Prime and unlock Web Audio API context during this user gesture to comply with browser autoplay policies
+      if (audioService && typeof audioService.initialise === 'function') {
+        audioService.initialise();
+      }
+
       const result = await cameraService.requestPermission();
 
       if (result.success) {

@@ -33,11 +33,11 @@
 - [<] [T12] [US1.4] Implement weapon mechanics: 6-round magazine, fire rate throttle, reload cooldown timer (1.5-2.0s), reload HUD indicator, and unit tests for weapon state transitions.
 
 ### US1.5: Música Ambiental y Efectos de Sonido (SFX)
-- [ ] [T13] [US1.5] Implement Audio Manager (`src/services/audio.js`) utilizing Web Audio API / audio buffers for synthesised/procedural or asset-based Halloween sound effects (shoot, reload, hit) and looping ambient background track.
-- [ ] [T14] [US1.5] Integrate audio controls into HUD with accessible mute/unmute toggle button and user-gesture activation meeting browser autoplay policies.
+- [<] [T13] [US1.5] Implement Audio Manager (`src/services/audio.js`) utilizing Web Audio API / audio buffers for synthesised/procedural or asset-based Halloween sound effects (shoot, reload, hit) and looping ambient background track.
+- [<] [T14] [US1.5] Integrate audio controls into HUD with accessible mute/unmute toggle button and user-gesture activation meeting browser autoplay policies.
 
 ### US1.6: Generación de Enemigos, Temporizador y Disparador de Susto
-- [ ] [T15] [US1.6] Implement Enemy entity types and pursuit AI in `src/game/entities.js` with variable speeds, animation frames, and collision hitboxes.
+- [-] [T15] [US1.6] Implement Enemy entity types and pursuit AI in `src/game/entities.js` with variable speeds, animation frames, and collision hitboxes.
 - [ ] [T16] [US1.6] Implement progressive wave spawner in `src/game/engine.js` that scales enemy spawn rate over time around arena perimeters.
 - [ ] [T17] [US1.6] Implement survival countdown timer (30-60s) in the HUD with progressive visual tension (colour shift, pulsing animations).
 - [ ] [T18] [US1.6] Implement game climax trigger: halt game loop upon timer expiration or player defeat, and emit `game:trigger-screamer` payload via Event Bus with verification tests.

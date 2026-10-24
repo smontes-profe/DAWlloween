@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { GameView } from '../src/views/gameView.js';
 import { cameraService } from '../src/screamer/camera.js';
 import { eventBus } from '../src/utils/eventBus.js';
+import { audioService } from '../src/services/audio.js';
 
 /**
  * Lightweight mock DOM environment for GameView testing.
@@ -132,6 +133,10 @@ describe('GameView Unit Tests', () => {
     globalThis.document = originalDocument;
     globalThis.window = originalWindow;
     eventBus.clear();
+    if (audioService) {
+      audioService.setMuted(false);
+      audioService.stopAmbient();
+    }
   });
 
   it('should render canvas with 1280x720 logical coordinates, hidden video, and HUD', () => {
@@ -193,22 +198,79 @@ describe('GameView Unit Tests', () => {
     assert.equal(view.ammoLabel.classList.contains('hud-ammo__label--reloading'), true);
   });
 
-  it('should toggle audio mute and publish audio:toggle-mute event', () => {
+  it('should toggle audio mute with accessible attributes and publish audio:toggle-mute event', () => {
     const view = new GameView();
     view.mount(mockEnv.container);
+
+    assert.ok(view.audioToggleBtn);
+    assert.equal(view.audioToggleBtn.getAttribute('aria-pressed'), 'false');
+    assert.equal(view.audioToggleBtn.getAttribute('aria-label'), 'Mute audio (currently active)');
+    assert.equal(view.audioToggleBtn.classList.contains('hud-btn--muted'), false);
 
     const audioEvents = [];
     eventBus.subscribe('audio:toggle-mute', (data) => audioEvents.push(data));
 
     view.handleAudioToggle();
     assert.equal(view.isMuted, true);
+    assert.equal(view.audioToggleBtn.getAttribute('aria-pressed'), 'true');
+    assert.equal(view.audioToggleBtn.getAttribute('aria-label'), 'Unmute audio (currently muted)');
+    assert.equal(view.audioToggleBtn.classList.contains('hud-btn--muted'), true);
     assert.equal(audioEvents.length, 1);
     assert.deepEqual(audioEvents[0], { isMuted: true });
 
     view.handleAudioToggle();
     assert.equal(view.isMuted, false);
+    assert.equal(view.audioToggleBtn.getAttribute('aria-pressed'), 'false');
+    assert.equal(view.audioToggleBtn.getAttribute('aria-label'), 'Mute audio (currently active)');
+    assert.equal(view.audioToggleBtn.classList.contains('hud-btn--muted'), false);
     assert.equal(audioEvents.length, 2);
     assert.deepEqual(audioEvents[1], { isMuted: false });
+  });
+
+  it('should reactively update HUD audio button upon external audio:toggle-mute events', () => {
+    const view = new GameView();
+    view.mount(mockEnv.container);
+
+    assert.equal(view.isMuted, false);
+
+    // External mute published
+    eventBus.publish('audio:toggle-mute', { isMuted: true });
+    assert.equal(view.isMuted, true);
+    assert.equal(view.audioToggleBtn.getAttribute('aria-pressed'), 'true');
+    assert.equal(view.audioToggleBtn.classList.contains('hud-btn--muted'), true);
+
+    // External unmute published
+    eventBus.publish('audio:toggle-mute', { isMuted: false });
+    assert.equal(view.isMuted, false);
+    assert.equal(view.audioToggleBtn.getAttribute('aria-pressed'), 'false');
+    assert.equal(view.audioToggleBtn.classList.contains('hud-btn--muted'), false);
+  });
+
+  it('should start ambient music on mount and cease playback on unmount', () => {
+    let ambientStarted = false;
+    let ambientStopped = false;
+
+    const originalStart = audioService.startAmbient;
+    const originalStop = audioService.stopAmbient;
+
+    audioService.startAmbient = () => {
+      ambientStarted = true;
+    };
+    audioService.stopAmbient = () => {
+      ambientStopped = true;
+    };
+
+    try {
+      const view = new GameView();
+      view.mount(mockEnv.container);
+      assert.equal(ambientStarted, true);
+
+      view.unmount();
+      assert.equal(ambientStopped, true);
+    } finally {
+      audioService.startAmbient = originalStart;
+      audioService.stopAmbient = originalStop;
+    }
   });
 
   it('should attach active camera stream to hidden video on mount', () => {

@@ -9,6 +9,7 @@
 import { cameraService } from '../screamer/camera.js';
 import { eventBus } from '../utils/eventBus.js';
 import { GameEngine } from '../game/engine.js';
+import { audioService } from '../services/audio.js';
 
 /**
  * Game View component orchestrating the Canvas arena and HUD overlay.
@@ -45,6 +46,12 @@ export class GameView {
     this.boundAudioToggle = null;
     /** @type {Function|null} */
     this.boundRetreat = null;
+    /** @type {Function|null} */
+    this.boundUserGesture = null;
+    /** @type {Function|null} */
+    this.unsubscribeAmmo = null;
+    /** @type {Function|null} */
+    this.unsubscribeMute = null;
   }
 
   /**
@@ -113,6 +120,9 @@ export class GameView {
     timerContainer.appendChild(timerDigits);
     hudTop.appendChild(timerContainer);
 
+    // Synchronise initial mute state with audioService
+    this.isMuted = audioService && typeof audioService.isMuted === 'function' ? audioService.isMuted() : false;
+
     const hudActions = document.createElement('div');
     hudActions.className = 'hud-actions';
 
@@ -120,8 +130,17 @@ export class GameView {
     audioToggleBtn.id = 'btn-audio-toggle';
     audioToggleBtn.type = 'button';
     audioToggleBtn.className = 'hud-btn';
-    audioToggleBtn.setAttribute('aria-label', 'Toggle audio mute');
-    audioToggleBtn.innerHTML = '<span aria-hidden="true">🔊</span> Audio';
+    if (this.isMuted) {
+      audioToggleBtn.classList.add('hud-btn--muted');
+    }
+    audioToggleBtn.setAttribute('aria-pressed', this.isMuted ? 'true' : 'false');
+    audioToggleBtn.setAttribute(
+      'aria-label',
+      this.isMuted ? 'Unmute audio (currently muted)' : 'Mute audio (currently active)'
+    );
+    const audioIcon = this.isMuted ? '🔇' : '🔊';
+    const audioLabel = this.isMuted ? 'Muted' : 'Audio';
+    audioToggleBtn.innerHTML = `<span aria-hidden="true">${audioIcon}</span> <span class="hud-btn__text">${audioLabel}</span>`;
 
     const retreatBtn = document.createElement('button');
     retreatBtn.id = 'btn-retreat';
@@ -189,15 +208,39 @@ export class GameView {
     this.audioToggleBtn = audioToggleBtn;
     this.retreatBtn = retreatBtn;
 
+    // Initialise and start ambient sound track
+    if (audioService && typeof audioService.initialise === 'function') {
+      audioService.initialise();
+      audioService.startAmbient();
+    }
+
+    // Defensive user-gesture unlock fallback for strict browser autoplay policies
+    this.boundUserGesture = () => {
+      if (audioService && typeof audioService.initialise === 'function') {
+        audioService.initialise();
+        audioService.startAmbient();
+      }
+    };
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('click', this.boundUserGesture, { once: true });
+      window.addEventListener('keydown', this.boundUserGesture, { once: true });
+    }
+
     // Initialise and boot Canvas 2D Game Engine
     this.engine = new GameEngine({ canvas });
     this.engine.start();
 
-    // Subscribe to EventBus ammo updates
+    // Subscribe to EventBus updates
     if (eventBus && typeof eventBus.subscribe === 'function') {
       this.unsubscribeAmmo = eventBus.subscribe('game:ammo-updated', (data) => {
         if (data) {
           this.updateAmmo(data.currentRounds, data.maxRounds, data.isReloading);
+        }
+      });
+
+      this.unsubscribeMute = eventBus.subscribe('audio:toggle-mute', (data) => {
+        if (data && typeof data.isMuted === 'boolean') {
+          this.syncAudioMuteUI(data.isMuted);
         }
       });
     }
@@ -264,16 +307,45 @@ export class GameView {
    * Handle audio mute button toggle.
    */
   handleAudioToggle() {
-    this.isMuted = !this.isMuted;
-    if (this.audioToggleBtn) {
-      const icon = this.isMuted ? '🔇' : '🔊';
-      const label = this.isMuted ? 'Muted' : 'Audio';
-      this.audioToggleBtn.innerHTML = `<span aria-hidden="true">${icon}</span> ${label}`;
+    if (audioService && typeof audioService.toggleMute === 'function') {
+      this.isMuted = audioService.toggleMute();
+    } else {
+      this.isMuted = !this.isMuted;
     }
+
+    this.syncAudioMuteUI(this.isMuted);
 
     if (eventBus && typeof eventBus.publish === 'function') {
       eventBus.publish('audio:toggle-mute', { isMuted: this.isMuted });
     }
+  }
+
+  /**
+   * Synchronise audio HUD toggle button UI state and accessibility attributes.
+   *
+   * @param {boolean} isMuted - Whether audio is muted.
+   */
+  syncAudioMuteUI(isMuted) {
+    this.isMuted = Boolean(isMuted);
+    if (!this.audioToggleBtn) {
+      return;
+    }
+
+    this.audioToggleBtn.setAttribute('aria-pressed', this.isMuted ? 'true' : 'false');
+    this.audioToggleBtn.setAttribute(
+      'aria-label',
+      this.isMuted ? 'Unmute audio (currently muted)' : 'Mute audio (currently active)'
+    );
+
+    if (this.isMuted) {
+      this.audioToggleBtn.classList.add('hud-btn--muted');
+    } else {
+      this.audioToggleBtn.classList.remove('hud-btn--muted');
+    }
+
+    const icon = this.isMuted ? '🔇' : '🔊';
+    const label = this.isMuted ? 'Muted' : 'Audio';
+    this.audioToggleBtn.innerHTML = `<span aria-hidden="true">${icon}</span> <span class="hud-btn__text">${label}</span>`;
   }
 
   /**
@@ -307,9 +379,25 @@ export class GameView {
    * Clean up event listeners and DOM elements upon view unmount.
    */
   unmount() {
+    // Cease ambient sound playback
+    if (audioService && typeof audioService.stopAmbient === 'function') {
+      audioService.stopAmbient();
+    }
+
     if (typeof this.unsubscribeAmmo === 'function') {
       this.unsubscribeAmmo();
       this.unsubscribeAmmo = null;
+    }
+
+    if (typeof this.unsubscribeMute === 'function') {
+      this.unsubscribeMute();
+      this.unsubscribeMute = null;
+    }
+
+    if (this.boundUserGesture && typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+      window.removeEventListener('click', this.boundUserGesture);
+      window.removeEventListener('keydown', this.boundUserGesture);
+      this.boundUserGesture = null;
     }
 
     if (this.engine) {

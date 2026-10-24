@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { WelcomeView } from '../src/views/welcomeView.js';
 import { cameraService } from '../src/screamer/camera.js';
 import { alerts } from '../src/ui/alerts.js';
+import { audioService } from '../src/services/audio.js';
 
 /**
  * Lightweight DOM mock for WelcomeView testing.
@@ -158,21 +159,33 @@ describe('WelcomeView Unit Tests', () => {
     assert.equal(textSpan.textContent, 'Calibrate & Enter the Arena');
   });
 
-  it('should request camera permission and navigate to #play upon successful calibration', async () => {
+  it('should initialise audio, request camera permission, and navigate to #play upon successful calibration', async () => {
     let permissionRequested = false;
+    let audioInitialised = false;
+    const originalInit = audioService.initialise;
+    audioService.initialise = () => {
+      audioInitialised = true;
+      return true;
+    };
+
     cameraService.requestPermission = async () => {
       permissionRequested = true;
       return { success: true, stream: {} };
     };
 
-    const view = new WelcomeView();
-    view.mount(mockEnv.container);
+    try {
+      const view = new WelcomeView();
+      view.mount(mockEnv.container);
 
-    const success = await view.handleStartExperience();
+      const success = await view.handleStartExperience();
 
-    assert.equal(permissionRequested, true);
-    assert.equal(success, true);
-    assert.equal(mockEnv.win.location.hash, '#play');
+      assert.equal(audioInitialised, true);
+      assert.equal(permissionRequested, true);
+      assert.equal(success, true);
+      assert.equal(mockEnv.win.location.hash, '#play');
+    } finally {
+      audioService.initialise = originalInit;
+    }
   });
 
   it('should reset button state when camera calibration fails or is denied', async () => {
