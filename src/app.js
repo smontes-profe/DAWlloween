@@ -10,6 +10,7 @@ import { eventBus } from './utils/eventBus.js';
 import { alerts } from './ui/alerts.js';
 import { welcomeView } from './views/welcomeView.js';
 import { gameView } from './views/gameView.js';
+import { screamerView } from './views/screamerView.js';
 
 /**
  * Client-side State Router managing view transitions and component lifecycles.
@@ -288,7 +289,7 @@ export function registerApplicationRoutes(router) {
   router
     .register('#home', welcomeView)
     .register('#play', gameView)
-    .register('#screamer', createPlaceholderView('Reaction Capture', 'Audiovisual surprise & webcam capture.'))
+    .register('#screamer', screamerView)
     .register('#register', createPlaceholderView('Register Hall of Fame', 'Review captured reaction and register your nickname.'))
     .register('#hall-of-fame', createPlaceholderView('Hall of Fame', 'Public responsive wall showcasing survivor reactions.'));
 }

@@ -103,6 +103,8 @@ export class AudioManager {
       eventBus.subscribe('game:weapon-reload-start', () => this.playReloadStart()),
       eventBus.subscribe('game:weapon-reloaded', () => this.playReloadComplete()),
       eventBus.subscribe('game:projectile-hit', () => this.playHit()),
+      eventBus.subscribe('screamer:play-sound', () => this.playScreamer()),
+      eventBus.subscribe('game:trigger-screamer', () => this.playScreamer()),
       eventBus.subscribe('audio:toggle-mute', (data) => {
         if (data && typeof data.isMuted === 'boolean') {
           this.setMuted(data.isMuted);
@@ -306,6 +308,82 @@ export class AudioManager {
 
     osc.start(now);
     osc.stop(now + 0.12);
+  }
+
+  /**
+   * Synthesises a high-intensity jumpscare screech and shock wave.
+   * Layers a piercing descending shrieking oscillator, a dissonant tritone harmonic,
+   * and a bandpass-filtered noise explosion burst to produce an intense, startling jumpscare SFX.
+   */
+  playScreamer() {
+    if (!this.ctx || !this.masterGain || this.isMutedState) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const duration = 1.1;
+
+      // 1. Primary shrieking oscillator (Sawtooth sweep 3400Hz -> 480Hz)
+      const osc1 = this.ctx.createOscillator();
+      osc1.type = 'sawtooth';
+      osc1.frequency.setValueAtTime(3400, now);
+      osc1.frequency.exponentialRampToValueAtTime(480, now + duration);
+
+      const gain1 = this.ctx.createGain();
+      gain1.gain.setValueAtTime(0.7, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      osc1.connect(gain1);
+      gain1.connect(this.masterGain);
+
+      // 2. Secondary dissonant oscillator (Square wave detuned to tritone 2550Hz -> 360Hz)
+      const osc2 = this.ctx.createOscillator();
+      osc2.type = 'square';
+      osc2.frequency.setValueAtTime(2550, now);
+      osc2.frequency.exponentialRampToValueAtTime(360, now + duration);
+
+      const gain2 = this.ctx.createGain();
+      gain2.gain.setValueAtTime(0.5, now);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      osc2.connect(gain2);
+      gain2.connect(this.masterGain);
+
+      // 3. Explosive noise burst for visceral physical presence
+      const bufferSize = Math.floor(this.ctx.sampleRate * 0.45);
+      const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.25));
+      }
+
+      const noiseSource = this.ctx.createBufferSource();
+      noiseSource.buffer = noiseBuffer;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(1800, now);
+      filter.Q.setValueAtTime(2.2, now);
+
+      const noiseGain = this.ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.8, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+      noiseSource.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(this.masterGain);
+
+      // Trigger playback
+      osc1.start(now);
+      osc1.stop(now + duration);
+
+      osc2.start(now);
+      osc2.stop(now + duration);
+
+      noiseSource.start(now);
+      noiseSource.stop(now + 0.45);
+    } catch (err) {
+      console.warn('[AudioManager] Error playing screamer sound:', err);
+    }
   }
 
   /**

@@ -261,6 +261,10 @@ export class GameView {
         if (audioService && typeof audioService.stopAmbient === 'function') {
           audioService.stopAmbient();
         }
+        // Seamlessly coordinate immediate route transition to #screamer
+        if (typeof window !== 'undefined' && window.location) {
+          window.location.hash = '#screamer';
+        }
       });
     }
 

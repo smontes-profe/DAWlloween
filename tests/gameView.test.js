@@ -322,7 +322,7 @@ describe('GameView Unit Tests', () => {
     }
   });
 
-  it('should cease ambient playback when game:trigger-screamer event is published', () => {
+  it('should cease ambient playback and transition to #screamer when game:trigger-screamer event is published', () => {
     let ambientStopped = false;
     const originalStop = audioService.stopAmbient;
     audioService.stopAmbient = () => {
@@ -335,6 +335,7 @@ describe('GameView Unit Tests', () => {
 
       eventBus.publish('game:trigger-screamer', { reason: 'timer_expired' });
       assert.equal(ambientStopped, true);
+      assert.equal(mockEnv.win.location.hash, '#screamer');
 
       view.unmount();
     } finally {

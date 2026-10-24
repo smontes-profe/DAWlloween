@@ -255,6 +255,55 @@ describe('AudioManager Unit Tests (US1.5 / T13)', () => {
     assert.strictEqual(manager.isMuted(), true);
   });
 
+  it('should synthesise high-intensity screech sound on playScreamer()', () => {
+    originalWindow = global.window;
+    const mockCtx = createMockAudioContext();
+    global.window = { AudioContext: function () { return mockCtx; } };
+
+    manager.initialise();
+
+    assert.doesNotThrow(() => {
+      manager.playScreamer();
+    });
+
+    // Verify oscillator and bufferSource operations
+    assert.ok(mockCtx.operations.some((op) => op.includes('oscillator.start')));
+    assert.ok(mockCtx.operations.some((op) => op.includes('bufferSource.start')));
+    assert.ok(mockCtx.operations.some((op) => op.includes('gain.exponentialRamp')));
+  });
+
+  it('should not play screamer sound if audio manager is muted', () => {
+    originalWindow = global.window;
+    const mockCtx = createMockAudioContext();
+    global.window = { AudioContext: function () { return mockCtx; } };
+
+    manager.initialise();
+    manager.setMuted(true);
+
+    const initialOpCount = mockCtx.operations.length;
+    manager.playScreamer();
+
+    // No new audio nodes or starts created
+    assert.strictEqual(mockCtx.operations.length, initialOpCount);
+  });
+
+  it('should trigger playScreamer automatically via screamer:play-sound and game:trigger-screamer events', () => {
+    originalWindow = global.window;
+    const mockCtx = createMockAudioContext();
+    global.window = { AudioContext: function () { return mockCtx; } };
+
+    manager.initialise();
+
+    let screamerCalls = 0;
+    manager.playScreamer = () => { screamerCalls++; };
+
+    eventBus.publish('screamer:play-sound', {});
+    assert.strictEqual(screamerCalls, 1);
+
+    eventBus.publish('game:trigger-screamer', {});
+    assert.strictEqual(screamerCalls, 2);
+  });
+
   it('should export singleton instance audioService', () => {
     assert.ok(audioService instanceof AudioManager);
   });

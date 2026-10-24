@@ -1,0 +1,237 @@
+/* ==========================================================================
+   DAWlloween - Screamer (Jumpscare) View Stylesheet
+   Strict UK English naming standards.
+   Pedagogical reference for 1st and 2nd year DAW students.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Screamer Fullscreen Container
+   Fixed overlay concealing all background UI during the jumpscare climax.
+   -------------------------------------------------------------------------- */
+.screamer-view {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1000;
+  background-color: #000000;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   2. Violent Strobe Flash Overlay
+   Rapidly alternates between blinding white, deep abyss, and blood red.
+   -------------------------------------------------------------------------- */
+.screamer-view__strobe {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  animation: screamer-strobe-flash 0.08s infinite alternate;
+  mix-blend-mode: hard-light;
+}
+
+@keyframes screamer-strobe-flash {
+  0% {
+    background-color: rgba(255, 255, 255, 0.85);
+  }
+  25% {
+    background-color: rgba(0, 0, 0, 0.95);
+  }
+  50% {
+    background-color: rgba(255, 30, 66, 0.8);
+  }
+  75% {
+    background-color: rgba(13, 10, 20, 0.9);
+  }
+  100% {
+    background-color: rgba(255, 117, 24, 0.75);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   3. Screen Shake Wrapper
+   Applies high-frequency multi-axis jitter to the jumpscare imagery.
+   -------------------------------------------------------------------------- */
+.screamer-view__shake {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  animation: screamer-violent-shake 0.05s infinite;
+  transform-origin: center center;
+}
+
+@keyframes screamer-violent-shake {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  20% {
+    transform: translate(-18px, 14px) rotate(-3deg);
+  }
+  40% {
+    transform: translate(16px, -12px) rotate(2.5deg);
+  }
+  60% {
+    transform: translate(-14px, -16px) rotate(-2deg);
+  }
+  80% {
+    transform: translate(18px, 16px) rotate(3deg);
+  }
+  100% {
+    transform: translate(-10px, 8px) rotate(-1.5deg);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   4. Demonic Monster Silhouette
+   Expanding monstrous Jack-o'-Lantern / Demon face lunging at the camera.
+   -------------------------------------------------------------------------- */
+.screamer-view__monster {
+  width: min(85vmin, 720px);
+  height: min(85vmin, 720px);
+  animation: screamer-zoom-lunge 1.6s cubic-bezier(0.12, 0.8, 0.32, 1) forwards;
+  filter: drop-shadow(0 0 35px #ff1e42)
+          drop-shadow(0 0 80px rgba(255, 30, 66, 0.85))
+          drop-shadow(0 0 120px rgba(255, 117, 24, 0.6));
+  transform-origin: center center;
+}
+
+@keyframes screamer-zoom-lunge {
+  0% {
+    transform: scale(0.65);
+    opacity: 0.2;
+  }
+  15% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.28);
+  }
+  85% {
+    transform: scale(1.42);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0.9;
+  }
+}
+
+/* Monster SVG internal paths glow and pulsation */
+.screamer-view__monster-eye {
+  fill: #ff1e42;
+  animation: screamer-eye-pulse 0.12s infinite alternate;
+}
+
+.screamer-view__monster-mouth {
+  fill: #ff7518;
+  animation: screamer-mouth-glow 0.1s infinite alternate;
+}
+
+@keyframes screamer-eye-pulse {
+  0% {
+    fill: #ffffff;
+    filter: drop-shadow(0 0 10px #ffffff);
+  }
+  100% {
+    fill: #ff1e42;
+    filter: drop-shadow(0 0 30px #ff1e42);
+  }
+}
+
+@keyframes screamer-mouth-glow {
+  0% {
+    fill: #ff7518;
+    filter: drop-shadow(0 0 15px #ff7518);
+  }
+  100% {
+    fill: #ff1e42;
+    filter: drop-shadow(0 0 35px #ff1e42);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   5. CRT Scanline & Chromatic Aberration Vignette
+   Simulates distorted arcade CRT monitor overload during the shock.
+   -------------------------------------------------------------------------- */
+.screamer-view__glitch {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  background: radial-gradient(circle at center, transparent 35%, rgba(0, 0, 0, 0.9) 95%),
+              repeating-linear-gradient(
+                0deg,
+                rgba(0, 0, 0, 0.3) 0px,
+                rgba(0, 0, 0, 0.3) 2px,
+                transparent 2px,
+                transparent 4px
+              );
+  opacity: 0.75;
+}
+
+/* --------------------------------------------------------------------------
+   6. Accessible Skip Trigger
+   Discreet indicator for keyboard users or photosensitive accessibility.
+   -------------------------------------------------------------------------- */
+.screamer-view__skip-btn {
+  position: absolute;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 10;
+  padding: 0.5rem 1rem;
+  background-color: rgba(7, 5, 10, 0.75);
+  border: 1px solid var(--colour-border-subtle, #2b2342);
+  border-radius: var(--radius-sm, 6px);
+  color: var(--colour-text-secondary, #b6b0c8);
+  font-family: var(--font-family-body, sans-serif);
+  font-size: var(--font-size-caption, 0.85rem);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.screamer-view__skip-btn:hover,
+.screamer-view__skip-btn:focus-visible {
+  color: var(--colour-text-primary, #f6f4fa);
+  border-color: var(--colour-pumpkin, #ff7518);
+  outline: none;
+}
+
+/* --------------------------------------------------------------------------
+   7. Accessibility Safeguard: Reduced Motion Mode
+   Protects photosensitive players by disabling rapid flashing and violent shakes.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .screamer-view__strobe {
+    animation: none;
+    background-color: rgba(13, 10, 20, 0.85);
+  }
+
+  .screamer-view__shake {
+    animation: none;
+  }
+
+  .screamer-view__monster {
+    animation: none;
+    transform: scale(1.1);
+    opacity: 1;
+    filter: drop-shadow(0 0 30px #ff1e42);
+  }
+
+  .screamer-view__monster-eye,
+  .screamer-view__monster-mouth {
+    animation: none;
+  }
+}
