@@ -192,6 +192,15 @@ export class GameView {
     // Initialise and boot Canvas 2D Game Engine
     this.engine = new GameEngine({ canvas });
     this.engine.start();
+
+    // Subscribe to EventBus ammo updates
+    if (eventBus && typeof eventBus.subscribe === 'function') {
+      this.unsubscribeAmmo = eventBus.subscribe('game:ammo-updated', (data) => {
+        if (data) {
+          this.updateAmmo(data.currentRounds, data.maxRounds, data.isReloading);
+        }
+      });
+    }
   }
 
   /**
@@ -298,6 +307,11 @@ export class GameView {
    * Clean up event listeners and DOM elements upon view unmount.
    */
   unmount() {
+    if (typeof this.unsubscribeAmmo === 'function') {
+      this.unsubscribeAmmo();
+      this.unsubscribeAmmo = null;
+    }
+
     if (this.engine) {
       this.engine.destroy();
       this.engine = null;

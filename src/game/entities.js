@@ -297,6 +297,136 @@ export class Player extends Entity {
 }
 
 /**
+ * Projectile entity representing discharged weapon rounds.
+ * Moves with linear ballistic velocity, tracks recent positions for tracer trail,
+ * and despawns automatically upon leaving arena boundaries.
+ */
+export class Projectile extends Entity {
+  /**
+   * Initialises the projectile with ballistic velocity and Halloween styling.
+   *
+   * @param {Object} [options={}] - Configuration options.
+   * @param {number} [options.x=0] - Initial horizontal coordinate.
+   * @param {number} [options.y=0] - Initial vertical coordinate.
+   * @param {number} [options.angle=0] - Travel trajectory angle in radians.
+   * @param {number} [options.speed=750] - Velocity in pixels per second.
+   * @param {number} [options.radius=4] - Collision hitbox radius in pixels.
+   * @param {number} [options.damage=25] - Damage dealt on impact.
+   * @param {string} [options.colour='#ffb74d'] - Bullet colour (spectral amber / golden spark).
+   */
+  constructor({
+    x = 0,
+    y = 0,
+    angle = 0,
+    speed = 750,
+    radius = 4,
+    damage = 25,
+    colour = '#ffb74d',
+    ...rest
+  } = {}) {
+    super({
+      x,
+      y,
+      radius,
+      speed,
+      angle,
+      colour,
+      type: 'projectile',
+      ...rest
+    });
+
+    this.damage = Math.max(1, Number(damage));
+    this.vx = Math.cos(this.angle) * this.speed;
+    this.vy = Math.sin(this.angle) * this.speed;
+
+    /** Recent position trail history for motion blur / ballistic tracer */
+    this.trail = [];
+    this.maxTrailLength = 4;
+  }
+
+  /**
+   * Updates projectile position and records trail history.
+   *
+   * @param {number} deltaTime - Elapsed frame duration in seconds.
+   * @param {{ width: number, height: number }|null} [arenaBounds=null] - Optional arena dimensions for despawn.
+   */
+  update(deltaTime, arenaBounds = null) {
+    if (!this.isAlive) return;
+
+    // Record trail position
+    this.trail.push({ x: this.x, y: this.y });
+    if (this.trail.length > this.maxTrailLength) {
+      this.trail.shift();
+    }
+
+    this.x += this.vx * deltaTime;
+    this.y += this.vy * deltaTime;
+
+    if (arenaBounds && typeof arenaBounds.width === 'number' && typeof arenaBounds.height === 'number') {
+      this.checkBounds(arenaBounds.width, arenaBounds.height);
+    }
+  }
+
+  /**
+   * Checks whether the projectile has exited the visible arena boundaries,
+   * marking it as dead so it can be pruned by the engine.
+   *
+   * @param {number} arenaWidth - Total width of the arena.
+   * @param {number} arenaHeight - Total height of the arena.
+   * @returns {boolean} True if within bounds; false if despawned.
+   */
+  checkBounds(arenaWidth, arenaHeight) {
+    if (
+      this.x < -this.radius ||
+      this.x > arenaWidth + this.radius ||
+      this.y < -this.radius ||
+      this.y > arenaHeight + this.radius
+    ) {
+      this.isAlive = false;
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Renders the projectile with a luminous tracer tail and glowing core.
+   *
+   * @param {CanvasRenderingContext2D} ctx - Canvas 2D context.
+   */
+  render(ctx) {
+    if (!this.isAlive || !ctx) return;
+
+    ctx.save();
+
+    // 1. Draw glowing ballistic tracer tail
+    if (this.trail.length > 0) {
+      ctx.beginPath();
+      ctx.moveTo(this.trail[0].x, this.trail[0].y);
+      for (let i = 1; i < this.trail.length; i++) {
+        ctx.lineTo(this.trail[i].x, this.trail[i].y);
+      }
+      ctx.lineTo(this.x, this.y);
+      ctx.strokeStyle = 'rgba(255, 183, 77, 0.4)'; // Amber motion blur
+      ctx.lineWidth = this.radius * 1.2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      ctx.closePath();
+    }
+
+    // 2. Draw glowing bullet core
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fillStyle = this.colour;
+    ctx.shadowColor = '#ffb74d';
+    ctx.shadowBlur = 8;
+    ctx.fill();
+    ctx.closePath();
+
+    ctx.restore();
+  }
+}
+
+/**
  * Extensible Entity Factory providing centralised creation of game objects.
  * Encapsulates instantiations and enables seamless additions (foes, projectiles, items).
  */
@@ -307,6 +437,7 @@ export class EntityFactory {
    */
   static #registry = new Map([
     ['player', Player],
+    ['projectile', Projectile],
     ['entity', Entity]
   ]);
 
@@ -352,6 +483,16 @@ export class EntityFactory {
    */
   static createPlayer(options = {}) {
     return this.create('player', options);
+  }
+
+  /**
+   * Convenience factory method for creating a Projectile entity.
+   *
+   * @param {Object} [options={}] - Projectile configuration options.
+   * @returns {Projectile} Created projectile instance.
+   */
+  static createProjectile(options = {}) {
+    return this.create('projectile', options);
   }
 
   /**

@@ -34,7 +34,7 @@
   width: 100%;
   height: 100%;
   display: block;
-  cursor: crosshair;
+  cursor: none;
 }
 
 /* Hidden video element keeping the webcam stream active in memory */

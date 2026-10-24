@@ -28,9 +28,9 @@
 - [<] [T9] [US1.3] Implement 60 FPS Canvas Game Engine (`src/game/engine.js`) with fixed/delta-time game loop, input management (strict WASD movement & continuous mouse pointer aiming), entity update/render lifecycle, and unit tests.
 
 ### US1.4: Disparo con Ratón y Sistema de Recarga
-- [ ] [T10] [US1.4] Implement custom crosshair cursor rendering and left-click (`mousedown`) projectile trigger handling in `src/game/engine.js`.
-- [ ] [T11] [US1.4] Implement Projectile entity in `src/game/entities.js` and ballistic motion system with boundary despawning and collision detection algorithms.
-- [ ] [T12] [US1.4] Implement weapon mechanics: 6-round magazine, fire rate throttle, reload cooldown timer (1.5-2.0s), reload HUD indicator, and unit tests for weapon state transitions.
+- [<] [T10] [US1.4] Implement custom crosshair cursor rendering and left-click (`mousedown`) projectile trigger handling in `src/game/engine.js`.
+- [<] [T11] [US1.4] Implement Projectile entity in `src/game/entities.js` and ballistic motion system with boundary despawning and collision detection algorithms.
+- [<] [T12] [US1.4] Implement weapon mechanics: 6-round magazine, fire rate throttle, reload cooldown timer (1.5-2.0s), reload HUD indicator, and unit tests for weapon state transitions.
 
 ### US1.5: Música Ambiental y Efectos de Sonido (SFX)
 - [ ] [T13] [US1.5] Implement Audio Manager (`src/services/audio.js`) utilizing Web Audio API / audio buffers for synthesised/procedural or asset-based Halloween sound effects (shoot, reload, hit) and looping ambient background track.

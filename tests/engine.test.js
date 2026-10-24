@@ -8,7 +8,8 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { GameEngine, GAME_STATES } from '../src/game/engine.js';
-import { Player } from '../src/game/entities.js';
+import { Player, EntityFactory } from '../src/game/entities.js';
+import { eventBus } from '../src/utils/eventBus.js';
 
 /**
  * Creates a mock 2D canvas context for engine render validation.
@@ -289,3 +290,156 @@ describe('GameEngine Simulation Loop & Boundary Clamping', () => {
     engine.stop();
   });
 });
+
+describe('GameEngine Left-Click Trigger & Crosshair Rendering (US1.4 / T10)', () => {
+  it('should discharge weapon and publish game:player-shoot on primary left-click (button: 0)', () => {
+    const engine = new GameEngine({ width: 1000, height: 800 });
+    engine.state = GAME_STATES.RUNNING;
+    engine.player.x = 200;
+    engine.player.y = 150;
+    engine.cursorX = 400;
+    engine.cursorY = 150;
+
+    let shootPayload = null;
+    const unsubscribe = eventBus.subscribe('game:player-shoot', (payload) => {
+      shootPayload = payload;
+    });
+
+    // Primary left-click
+    engine.handleMouseDown({ button: 0, preventDefault: () => {} });
+
+    assert.ok(shootPayload !== null);
+    assert.strictEqual(shootPayload.originX, 200);
+    assert.strictEqual(shootPayload.originY, 150);
+    assert.strictEqual(shootPayload.targetX, 400);
+    assert.strictEqual(shootPayload.targetY, 150);
+    assert.strictEqual(engine.isFiringAnimationActive, true);
+    assert.strictEqual(engine.firingAnimationTimer, 0.08);
+
+    unsubscribe();
+  });
+
+  it('should strictly ignore non-primary mouse clicks (right click, middle click)', () => {
+    const engine = new GameEngine();
+    engine.state = GAME_STATES.RUNNING;
+
+    let shotTriggered = false;
+    const unsubscribe = eventBus.subscribe('game:player-shoot', () => {
+      shotTriggered = true;
+    });
+
+    // Middle-click (button: 1) and Right-click (button: 2)
+    engine.handleMouseDown({ button: 1 });
+    engine.handleMouseDown({ button: 2 });
+
+    assert.strictEqual(shotTriggered, false);
+    assert.strictEqual(engine.isFiringAnimationActive, false);
+
+    unsubscribe();
+  });
+
+  it('should not discharge weapon if game is paused or stopped', () => {
+    const engine = new GameEngine();
+    engine.state = GAME_STATES.PAUSED;
+
+    const result = engine.triggerShoot();
+    assert.strictEqual(result, false);
+    assert.strictEqual(engine.isFiringAnimationActive, false);
+  });
+
+  it('should render custom crosshair with recoil dynamics without throwing', () => {
+    const mockCanvas = createMockCanvas();
+    const engine = new GameEngine({ canvas: mockCanvas });
+    engine.cursorX = 350;
+    engine.cursorY = 220;
+
+    // Normal rendering
+    assert.doesNotThrow(() => {
+      engine.renderCrosshair(mockCanvas._mockContext);
+    });
+
+    // Firing recoil rendering
+    engine.isFiringAnimationActive = true;
+    assert.doesNotThrow(() => {
+      engine.renderCrosshair(mockCanvas._mockContext);
+    });
+  });
+
+  it('should update and decay firing recoil animation timer during update()', () => {
+    const engine = new GameEngine();
+    engine.state = GAME_STATES.RUNNING;
+    engine.isFiringAnimationActive = true;
+    engine.firingAnimationTimer = 0.08;
+
+    engine.update(0.04);
+    assert.strictEqual(engine.isFiringAnimationActive, true);
+    assert.ok(Math.abs(engine.firingAnimationTimer - 0.04) < 1e-6);
+
+    engine.update(0.05);
+    assert.strictEqual(engine.isFiringAnimationActive, false);
+    assert.strictEqual(engine.firingAnimationTimer, 0);
+  });
+
+  it('should spawn Projectile entity into engine.projectiles on triggerShoot()', () => {
+    const engine = new GameEngine();
+    engine.state = GAME_STATES.RUNNING;
+    engine.player.x = 250;
+    engine.player.y = 200;
+    engine.cursorX = 500;
+    engine.cursorY = 200;
+
+    assert.strictEqual(engine.projectiles.length, 0);
+    engine.triggerShoot();
+    assert.strictEqual(engine.projectiles.length, 1);
+
+    const projectile = engine.projectiles[0];
+    assert.strictEqual(projectile.x, 250);
+    assert.strictEqual(projectile.y, 200);
+    assert.strictEqual(projectile.vx, 750);
+  });
+
+  it('should prune dead or boundary-exited projectiles during engine.update()', () => {
+    const engine = new GameEngine({ width: 500, height: 500 });
+    engine.state = GAME_STATES.RUNNING;
+
+    // Spawn projectile near right boundary
+    const projectile = EntityFactory.createProjectile({
+      x: 495,
+      y: 250,
+      angle: 0,
+      speed: 1000
+    });
+    engine.projectiles.push(projectile);
+
+    // Update simulation by 0.1s -> moves 100px past boundary (x = 595 > 500 + radius)
+    engine.update(0.1);
+
+    // Projectile should be marked dead and removed from engine.projectiles
+    assert.strictEqual(engine.projectiles.length, 0);
+  });
+
+  it('should detect collisions between projectiles and enemies and emit game:projectile-hit', () => {
+    const engine = new GameEngine();
+    engine.state = GAME_STATES.RUNNING;
+
+    const projectile = EntityFactory.createProjectile({ x: 100, y: 100, radius: 5 });
+    const enemy = new Player({ x: 105, y: 100, radius: 15 }); // Using Entity subclass with collidesWith
+    engine.projectiles.push(projectile);
+    engine.enemies.push(enemy);
+
+    let hitEvent = null;
+    const unsubscribe = eventBus.subscribe('game:projectile-hit', (data) => {
+      hitEvent = data;
+    });
+
+    const hits = engine.checkProjectileCollisions();
+    assert.strictEqual(hits.length, 1);
+    assert.strictEqual(projectile.isAlive, false);
+    assert.ok(hitEvent !== null);
+    assert.strictEqual(hitEvent.enemy, enemy);
+    assert.strictEqual(hitEvent.damage, 25);
+
+    unsubscribe();
+  });
+});
+

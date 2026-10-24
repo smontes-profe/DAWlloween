@@ -12,6 +12,7 @@ import {
   calculateAngle,
   Entity,
   Player,
+  Projectile,
   EntityFactory
 } from '../src/game/entities.js';
 
@@ -33,6 +34,7 @@ function createMockCanvasContext() {
     arc: (x, y, r, sa, ea) => operations.push(`arc(${x},${y},${r},${sa},${ea})`),
     rect: (x, y, w, h) => operations.push(`rect(${x},${y},${w},${h})`),
     moveTo: (x, y) => operations.push(`moveTo(${x},${y})`),
+    lineTo: (x, y) => operations.push(`lineTo(${x},${y})`),
     fill: () => operations.push('fill'),
     stroke: () => operations.push('stroke'),
     fillStyle: '',
@@ -253,6 +255,79 @@ describe('Player Entity Unit Tests', () => {
   });
 });
 
+describe('Projectile Entity Unit Tests', () => {
+  it('should initialise projectile with ballistic velocity based on angle', () => {
+    // Firing directly to the right (angle = 0)
+    const pRight = new Projectile({ x: 100, y: 100, angle: 0, speed: 800 });
+    assert.strictEqual(pRight.vx, 800);
+    assert.strictEqual(pRight.vy, 0);
+    assert.strictEqual(pRight.type, 'projectile');
+    assert.strictEqual(pRight.radius, 4);
+    assert.strictEqual(pRight.damage, 25);
+    assert.strictEqual(pRight.isAlive, true);
+
+    // Firing directly downwards (angle = PI / 2)
+    const pDown = new Projectile({ x: 100, y: 100, angle: Math.PI / 2, speed: 600 });
+    assert.ok(Math.abs(pDown.vx) < 1e-6);
+    assert.ok(Math.abs(pDown.vy - 600) < 1e-6);
+  });
+
+  it('should advance linearly and record recent positions in trail', () => {
+    const projectile = new Projectile({ x: 50, y: 50, angle: 0, speed: 500 });
+    projectile.update(0.1); // Advances 50px
+
+    assert.strictEqual(projectile.x, 100);
+    assert.strictEqual(projectile.y, 50);
+    assert.strictEqual(projectile.trail.length, 1);
+    assert.deepStrictEqual(projectile.trail[0], { x: 50, y: 50 });
+
+    // Subsequent updates record trail capped at maxTrailLength
+    projectile.update(0.1);
+    projectile.update(0.1);
+    projectile.update(0.1);
+    projectile.update(0.1);
+    assert.strictEqual(projectile.trail.length, 4);
+  });
+
+  it('should despawn (isAlive = false) when exiting arena boundaries', () => {
+    const arenaBounds = { width: 1000, height: 600 };
+    const projectile = new Projectile({ x: 990, y: 300, angle: 0, speed: 500 });
+
+    // Within bounds
+    projectile.update(0.01, arenaBounds);
+    assert.strictEqual(projectile.isAlive, true);
+
+    // Moves past right boundary (> 1000 + radius)
+    projectile.update(0.1, arenaBounds);
+    assert.strictEqual(projectile.isAlive, false);
+  });
+
+  it('should detect collisions with enemy circular entities', () => {
+    const projectile = new Projectile({ x: 200, y: 200, radius: 4 });
+    const enemy = new Entity({ x: 215, y: 200, radius: 15, type: 'enemy' });
+
+    // Distance = 15, sum of radii = 19 -> Collision
+    assert.strictEqual(projectile.collidesWith(enemy), true);
+
+    // Move enemy far away
+    enemy.x = 400;
+    assert.strictEqual(projectile.collidesWith(enemy), false);
+  });
+
+  it('should render glowing core and ballistic trail without throwing', () => {
+    const projectile = new Projectile({ x: 100, y: 100, angle: 0 });
+    const mockCtx = createMockCanvasContext();
+
+    projectile.update(0.05);
+    assert.doesNotThrow(() => {
+      projectile.render(mockCtx);
+    });
+
+    assert.ok(mockCtx.operations.includes('arc(137.5,100,4,0,6.283185307179586)'));
+    assert.ok(mockCtx.operations.includes('fill'));
+  });
+});
+
 describe('EntityFactory Unit Tests', () => {
   it('should create a Player entity using createPlayer convenience method', () => {
     const player = EntityFactory.createPlayer({ x: 150, y: 250 });
@@ -260,6 +335,14 @@ describe('EntityFactory Unit Tests', () => {
     assert.strictEqual(player.x, 150);
     assert.strictEqual(player.y, 250);
     assert.strictEqual(player.type, 'player');
+  });
+
+  it('should create a Projectile entity using createProjectile convenience method', () => {
+    const projectile = EntityFactory.createProjectile({ x: 100, y: 80, angle: Math.PI / 4 });
+    assert.ok(projectile instanceof Projectile);
+    assert.strictEqual(projectile.x, 100);
+    assert.strictEqual(projectile.y, 80);
+    assert.strictEqual(projectile.type, 'projectile');
   });
 
   it('should create registered entity types via create()', () => {
