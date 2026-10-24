@@ -1,0 +1,288 @@
+/* ==========================================================================
+   DAWlloween - Register & Reaction View Stylesheet
+   Strict UK English naming standards.
+   Pedagogical reference for 1st and 2nd year DAW students.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Register View Layout & Container
+   -------------------------------------------------------------------------- */
+.register-view {
+  min-height: calc(100vh - 160px);
+  padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 3vw, 2rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.register-view__container {
+  width: 100%;
+  max-width: 1040px;
+  display: grid;
+  grid-template-columns: minmax(300px, 420px) 1fr;
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  align-items: center;
+}
+
+/* --------------------------------------------------------------------------
+   2. Gothic Halloween Polaroid Photo Card
+   Aged parchment / eerie photo frame displaying player scare reaction.
+   -------------------------------------------------------------------------- */
+.polaroid-card {
+  position: relative;
+  background: #fbf9f4;
+  color: #120d1c;
+  padding: 1.25rem 1.25rem 2rem 1.25rem;
+  border-radius: var(--radius-sm, 6px);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.8),
+              0 0 30px rgba(255, 117, 24, 0.22);
+  transform: rotate(-2deg);
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+              box-shadow 0.35s ease;
+  user-select: none;
+}
+
+.polaroid-card:hover,
+.polaroid-card:focus-within {
+  transform: rotate(0deg) scale(1.02);
+  box-shadow: 0 25px 55px rgba(0, 0, 0, 0.9),
+              0 0 45px rgba(255, 117, 24, 0.4);
+}
+
+/* Thematic masking tape graphic at top center */
+.polaroid-card__tape {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 110px;
+  height: 26px;
+  background: rgba(255, 235, 180, 0.72);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  border-left: 2px dashed rgba(200, 180, 140, 0.6);
+  border-right: 2px dashed rgba(200, 180, 140, 0.6);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Inner photo frame displaying captured WebP image */
+.polaroid-card__photo-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background-color: #07050a;
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.polaroid-card__photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: contrast(1.08) saturate(1.05);
+  transition: transform 0.4s ease;
+}
+
+.polaroid-card:hover .polaroid-card__photo {
+  transform: scale(1.03);
+}
+
+/* Bottom caption & metadata */
+.polaroid-card__caption {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.polaroid-card__title {
+  font-family: var(--font-family-display, cursive);
+  font-size: 1.35rem;
+  color: #1b1226;
+  margin: 0 0 0.35rem 0;
+  letter-spacing: 0.5px;
+}
+
+.polaroid-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-family-body, sans-serif);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(255, 117, 24, 0.15);
+  color: #b54900;
+}
+
+.polaroid-card__badge--fallback {
+  background: rgba(157, 78, 221, 0.15);
+  color: #6a1b9a;
+}
+
+/* --------------------------------------------------------------------------
+   3. Registration Form Panel
+   -------------------------------------------------------------------------- */
+.register-panel {
+  background: var(--colour-bg-surface, #161224);
+  border: 1px solid var(--colour-border-subtle, #2b2342);
+  border-radius: var(--radius-lg, 16px);
+  padding: clamp(1.5rem, 4vw, 2.75rem);
+  box-shadow: var(--shadow-surface, 0 10px 30px rgba(0, 0, 0, 0.5));
+}
+
+.register-panel__header {
+  margin-bottom: 1.75rem;
+}
+
+.register-panel__title {
+  font-family: var(--font-family-display, cursive);
+  font-size: var(--font-size-title, 2.25rem);
+  color: var(--colour-pumpkin, #ff7518);
+  margin: 0 0 0.5rem 0;
+  text-shadow: 0 0 15px var(--colour-pumpkin-glow, rgba(255, 117, 24, 0.4));
+}
+
+.register-panel__subtitle {
+  color: var(--colour-text-secondary, #b6b0c8);
+  font-size: var(--font-size-body, 1rem);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Nickname Input & Validation States */
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.register-form__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.register-form__label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.register-form__label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--colour-text-primary, #f6f4fa);
+}
+
+.register-form__counter {
+  font-size: 0.8rem;
+  color: var(--colour-text-muted, #7d7594);
+  font-family: var(--font-family-code, monospace);
+}
+
+.register-form__input {
+  width: 100%;
+  padding: 0.85rem 1.15rem;
+  background-color: var(--colour-bg-midnight, #0d0a14);
+  border: 2px solid var(--colour-border-subtle, #2b2342);
+  border-radius: var(--radius-md, 10px);
+  color: var(--colour-text-primary, #f6f4fa);
+  font-family: var(--font-family-body, sans-serif);
+  font-size: 1.1rem;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.register-form__input:focus {
+  border-color: var(--colour-pumpkin, #ff7518);
+  box-shadow: 0 0 0 3px var(--colour-pumpkin-glow, rgba(255, 117, 24, 0.35));
+}
+
+.register-form__input--error {
+  border-color: var(--colour-blood-red, #ff1e42);
+  box-shadow: 0 0 0 3px var(--colour-blood-glow, rgba(255, 30, 66, 0.35));
+}
+
+.register-form__feedback {
+  min-height: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--colour-blood-red, #ff1e42);
+  margin-top: 0.15rem;
+}
+
+/* Action Button Group */
+.register-form__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.btn-immortalise {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 1rem 1.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #07050a;
+  background: linear-gradient(135deg, var(--colour-pumpkin-bright, #ff944d), var(--colour-pumpkin, #ff7518));
+  border: none;
+  border-radius: var(--radius-md, 10px);
+  cursor: pointer;
+  box-shadow: 0 6px 20px var(--colour-pumpkin-glow, rgba(255, 117, 24, 0.45));
+  transition: all 0.25s ease;
+}
+
+.btn-immortalise:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px var(--colour-pumpkin-glow, rgba(255, 117, 24, 0.6));
+}
+
+.btn-immortalise:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-play-again {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.85rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--colour-ectoplasm, #28fc74);
+  background: transparent;
+  border: 1px solid var(--colour-ectoplasm-dim, #1db854);
+  border-radius: var(--radius-md, 10px);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.btn-play-again:hover {
+  background: rgba(40, 252, 116, 0.12);
+  border-color: var(--colour-ectoplasm, #28fc74);
+  transform: translateY(-1px);
+}
+
+/* --------------------------------------------------------------------------
+   4. Responsive Adjustments
+   -------------------------------------------------------------------------- */
+@media (max-width: 820px) {
+  .register-view__container {
+    grid-template-columns: 1fr;
+    max-width: 480px;
+  }
+
+  .polaroid-card {
+    transform: rotate(0deg);
+  }
+}

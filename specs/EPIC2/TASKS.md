@@ -21,5 +21,5 @@
 - [<] [T4] [US2.1] Register `#screamer` route in `src/app.js`, coordinate seamless transition from the game loop upon `game:trigger-screamer`, and add unit tests in `tests/screamerView.test.js`.
 
 ### US2.3: Pantalla de Reacción y Registro de Apodo (`#register`)
-- [-] [T5] [US2.3] Build Reaction and Registration view in `src/views/registerView.js` and `styles/register.css` displaying the captured WebP photo inside a gothic Halloween Polaroid frame, with accessible layout and fallback spooky avatar when camera is unavailable.
-- [ ] [T6] [US2.3] Implement nickname input validation (3–20 characters, sanitisation), submission button publishing `screamer:nickname-submitted` payload via EventBus (preparing data for EPIC3), "Jugar de nuevo" restart action, and unit tests in `tests/registerView.test.js`.
+- [<] [T5] [US2.3] Build Reaction and Registration view in `src/views/registerView.js` and `styles/register.css` displaying the captured WebP photo inside a gothic Halloween Polaroid frame, with accessible layout and fallback spooky avatar when camera is unavailable.
+- [<] [T6] [US2.3] Implement nickname input validation (3–20 characters, sanitisation), submission button publishing `screamer:nickname-submitted` payload via EventBus (preparing data for EPIC3), "Jugar de nuevo" restart action, and unit tests in `tests/registerView.test.js`.
