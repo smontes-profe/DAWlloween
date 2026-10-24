@@ -13,6 +13,10 @@ import {
   Entity,
   Player,
   Projectile,
+  Enemy,
+  Ghost,
+  Zombie,
+  PumpkinBrute,
   EntityFactory
 } from '../src/game/entities.js';
 
@@ -253,6 +257,27 @@ describe('Player Entity Unit Tests', () => {
     assert.ok(mockCtx.operations.includes('fill'));
     assert.ok(mockCtx.operations.includes('restore'));
   });
+
+  it('should apply damage and mark player as dead when health reaches zero', () => {
+    const player = new Player({ health: 100 });
+    assert.strictEqual(player.health, 100);
+    assert.strictEqual(player.isAlive, true);
+
+    const defeated1 = player.takeDamage(40);
+    assert.strictEqual(player.health, 60);
+    assert.strictEqual(player.isAlive, true);
+    assert.strictEqual(defeated1, false);
+
+    const defeated2 = player.takeDamage(80);
+    assert.strictEqual(player.health, 0);
+    assert.strictEqual(player.isAlive, false);
+    assert.strictEqual(defeated2, true);
+
+    // Further damage when already dead should return false and keep health at 0
+    const defeated3 = player.takeDamage(10);
+    assert.strictEqual(player.health, 0);
+    assert.strictEqual(defeated3, false);
+  });
 });
 
 describe('Projectile Entity Unit Tests', () => {
@@ -328,6 +353,160 @@ describe('Projectile Entity Unit Tests', () => {
   });
 });
 
+describe('Enemy Entities & Pursuit AI Unit Tests (US1.6 / T15)', () => {
+  it('should initialise base enemy with default attributes and full health', () => {
+    const enemy = new Enemy({ x: 100, y: 150 });
+    assert.strictEqual(enemy.x, 100);
+    assert.strictEqual(enemy.y, 150);
+    assert.strictEqual(enemy.radius, 16);
+    assert.strictEqual(enemy.speed, 80);
+    assert.strictEqual(enemy.health, 1);
+    assert.strictEqual(enemy.maxHealth, 1);
+    assert.strictEqual(enemy.damage, 1);
+    assert.strictEqual(enemy.isAlive, true);
+    assert.strictEqual(enemy.colour, '#39ff14');
+  });
+
+  it('should accurately calculate pursuit angle and advance towards target coordinates', () => {
+    // Enemy at (0, 0), target at (100, 0) -> Moving East along X axis
+    const enemy = new Enemy({ x: 0, y: 0, speed: 100 });
+    enemy.pursue(100, 0, 0.5);
+
+    assert.strictEqual(enemy.angle, 0);
+    assert.strictEqual(enemy.vx, 100);
+    assert.strictEqual(enemy.vy, 0);
+    assert.strictEqual(enemy.x, 50); // 100 px/s * 0.5s = 50px
+    assert.strictEqual(enemy.y, 0);
+
+    // Enemy pursuing diagonally towards (50, 50)
+    const diagEnemy = new Enemy({ x: 0, y: 0, speed: 100 });
+    diagEnemy.pursue(50, 50, 1.0);
+    const expectedComp = 100 / Math.SQRT2;
+    assert.ok(Math.abs(diagEnemy.vx - expectedComp) < 1e-6);
+    assert.ok(Math.abs(diagEnemy.vy - expectedComp) < 1e-6);
+    assert.ok(Math.abs(diagEnemy.x - expectedComp) < 1e-6);
+  });
+
+  it('should safely handle zero-distance pursuit without producing NaN or zero-division', () => {
+    const enemy = new Enemy({ x: 50, y: 50, speed: 120 });
+    enemy.pursue(50, 50, 0.1);
+
+    assert.strictEqual(enemy.vx, 0);
+    assert.strictEqual(enemy.vy, 0);
+    assert.strictEqual(enemy.x, 50);
+    assert.strictEqual(enemy.y, 50);
+    assert.strictEqual(Number.isNaN(enemy.x), false);
+  });
+
+  it('should ignore pursuit updates if enemy is already defeated or deltaTime is non-positive', () => {
+    const enemy = new Enemy({ x: 10, y: 10, speed: 80 });
+    enemy.isAlive = false;
+    enemy.pursue(100, 100, 1.0);
+    assert.strictEqual(enemy.x, 10);
+
+    const liveEnemy = new Enemy({ x: 10, y: 10, speed: 80 });
+    liveEnemy.pursue(100, 100, 0);
+    assert.strictEqual(liveEnemy.x, 10);
+  });
+
+  it('should decrement health on damage and mark defeat when health reaches zero', () => {
+    const enemy = new Enemy({ health: 2 });
+    assert.strictEqual(enemy.health, 2);
+
+    const defeatedFirst = enemy.takeDamage(1);
+    assert.strictEqual(defeatedFirst, false);
+    assert.strictEqual(enemy.health, 1);
+    assert.strictEqual(enemy.isAlive, true);
+
+    const defeatedSecond = enemy.takeDamage(1);
+    assert.strictEqual(defeatedSecond, true);
+    assert.strictEqual(enemy.health, 0);
+    assert.strictEqual(enemy.isAlive, false);
+
+    // Further damage on dead enemy returns false
+    assert.strictEqual(enemy.takeDamage(1), false);
+  });
+
+  it('should detect circular collision with entities and ignore dead entities', () => {
+    const enemy = new Enemy({ x: 100, y: 100, radius: 15 });
+    const player = new Player({ x: 120, y: 100, radius: 15 });
+
+    // Distance = 20, combined radius = 30 -> Collision
+    assert.strictEqual(enemy.checkCollision(player), true);
+
+    // Move player away
+    player.x = 200;
+    assert.strictEqual(enemy.checkCollision(player), false);
+
+    // If player or enemy is dead, no collision
+    player.x = 120;
+    player.isAlive = false;
+    assert.strictEqual(enemy.checkCollision(player), false);
+
+    player.isAlive = true;
+    enemy.isAlive = false;
+    assert.strictEqual(enemy.checkCollision(player), false);
+  });
+
+  it('should initialise Ghost archetype with high speed, spectral colour, and lateral wobble', () => {
+    const ghost = new Ghost({ x: 50, y: 50 });
+    assert.strictEqual(ghost.type, 'ghost');
+    assert.strictEqual(ghost.speed, 130);
+    assert.strictEqual(ghost.health, 1);
+    assert.strictEqual(ghost.radius, 14);
+    assert.strictEqual(ghost.colour, 'rgba(57, 255, 20, 0.85)');
+
+    // Pursuit introduces lateral wobble velocity component
+    ghost.wobblePhase = 0;
+    ghost.pursue(200, 50, 0.1);
+    assert.notStrictEqual(ghost.vx, 0);
+    assert.strictEqual(ghost.isAlive, true);
+
+    const mockCtx = createMockCanvasContext();
+    assert.doesNotThrow(() => ghost.render(mockCtx));
+    assert.ok(mockCtx.operations.includes('beginPath'));
+    assert.ok(mockCtx.operations.includes('fill'));
+  });
+
+  it('should initialise Zombie archetype with standard speed and render properly', () => {
+    const zombie = new Zombie({ x: 80, y: 80 });
+    assert.strictEqual(zombie.type, 'zombie');
+    assert.strictEqual(zombie.speed, 80);
+    assert.strictEqual(zombie.health, 1);
+    assert.strictEqual(zombie.radius, 16);
+    assert.strictEqual(zombie.colour, '#66bb6a');
+
+    const mockCtx = createMockCanvasContext();
+    assert.doesNotThrow(() => zombie.render(mockCtx));
+    assert.ok(mockCtx.operations.includes('stroke'));
+  });
+
+  it('should initialise PumpkinBrute archetype with high health and handle multiple hits', () => {
+    const brute = new PumpkinBrute({ x: 100, y: 100 });
+    assert.strictEqual(brute.type, 'brute');
+    assert.strictEqual(brute.speed, 55);
+    assert.strictEqual(brute.health, 2);
+    assert.strictEqual(brute.radius, 24);
+    assert.strictEqual(brute.damage, 2);
+    assert.strictEqual(brute.scoreValue, 30);
+
+    // Survives 1 hit
+    const firstHit = brute.takeDamage(1);
+    assert.strictEqual(firstHit, false);
+    assert.strictEqual(brute.isAlive, true);
+    assert.strictEqual(brute.health, 1);
+
+    // Felled by 2nd hit
+    const secondHit = brute.takeDamage(1);
+    assert.strictEqual(secondHit, true);
+    assert.strictEqual(brute.isAlive, false);
+
+    const mockCtx = createMockCanvasContext();
+    brute.isAlive = true;
+    assert.doesNotThrow(() => brute.render(mockCtx));
+  });
+});
+
 describe('EntityFactory Unit Tests', () => {
   it('should create a Player entity using createPlayer convenience method', () => {
     const player = EntityFactory.createPlayer({ x: 150, y: 250 });
@@ -345,6 +524,23 @@ describe('EntityFactory Unit Tests', () => {
     assert.strictEqual(projectile.type, 'projectile');
   });
 
+  it('should create enemy archetypes via convenience factory methods', () => {
+    const ghost = EntityFactory.createGhost({ x: 10, y: 20 });
+    assert.ok(ghost instanceof Ghost);
+    assert.strictEqual(ghost.type, 'ghost');
+
+    const zombie = EntityFactory.createZombie({ x: 30, y: 40 });
+    assert.ok(zombie instanceof Zombie);
+    assert.strictEqual(zombie.type, 'zombie');
+
+    const brute = EntityFactory.createBrute({ x: 50, y: 60 });
+    assert.ok(brute instanceof PumpkinBrute);
+    assert.strictEqual(brute.type, 'brute');
+
+    const genericEnemy = EntityFactory.createEnemy('ghost', { x: 70, y: 80 });
+    assert.ok(genericEnemy instanceof Ghost);
+  });
+
   it('should create registered entity types via create()', () => {
     const entity = EntityFactory.create('entity', { x: 50, y: 50 });
     assert.ok(entity instanceof Entity);
@@ -353,34 +549,37 @@ describe('EntityFactory Unit Tests', () => {
     const player = EntityFactory.create('PLAYER', { speed: 300 });
     assert.ok(player instanceof Player);
     assert.strictEqual(player.speed, 300);
+
+    const zombie = EntityFactory.create('zombie');
+    assert.ok(zombie instanceof Zombie);
   });
 
   it('should throw an informative error when creating an unknown entity type', () => {
     assert.throws(
-      () => EntityFactory.create('vampire'),
-      /\[EntityFactory\] Unknown entity type: "vampire"/
+      () => EntityFactory.create('vampire_lord'),
+      /\[EntityFactory\] Unknown entity type: "vampire_lord"/
     );
   });
 
   it('should support registering custom entity constructors dynamically', () => {
-    class GhostEntity extends Entity {
+    class CustomWraith extends Entity {
       constructor(opts = {}) {
-        super({ type: 'ghost', colour: '#e0e0e0', ...opts });
+        super({ type: 'wraith', colour: '#e0e0e0', ...opts });
         this.spectralPhase = true;
       }
     }
 
-    EntityFactory.register('ghost', GhostEntity);
+    EntityFactory.register('wraith', CustomWraith);
 
-    assert.ok(EntityFactory.getRegisteredTypes().includes('ghost'));
-    const ghost = EntityFactory.create('ghost', { x: 99, y: 88 });
-    assert.ok(ghost instanceof GhostEntity);
-    assert.strictEqual(ghost.type, 'ghost');
-    assert.strictEqual(ghost.spectralPhase, true);
+    assert.ok(EntityFactory.getRegisteredTypes().includes('wraith'));
+    const wraith = EntityFactory.create('wraith', { x: 99, y: 88 });
+    assert.ok(wraith instanceof CustomWraith);
+    assert.strictEqual(wraith.type, 'wraith');
+    assert.strictEqual(wraith.spectralPhase, true);
   });
 
   it('should validate arguments during registration', () => {
     assert.throws(() => EntityFactory.register('', () => {}), TypeError);
-    assert.throws(() => EntityFactory.register('zombie', null), TypeError);
+    assert.throws(() => EntityFactory.register('ghoul', null), TypeError);
   });
 });

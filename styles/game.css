@@ -81,11 +81,12 @@
   padding: var(--space-xs) var(--space-md);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  box-shadow: var(--shadow-card);
+  transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
 .hud-timer__icon {
   font-size: 1.25rem;
+  transition: transform var(--transition-fast);
 }
 
 .hud-timer__digits {
@@ -95,13 +96,51 @@
   letter-spacing: 0.1em;
   min-width: 70px;
   text-align: center;
+  transition: color var(--transition-normal), text-shadow var(--transition-normal);
 }
 
-/* High tension / final countdown styling */
+/* Tier 1: Warning visual tension (11s - 20s) */
+.hud-timer--warning {
+  border-color: var(--colour-pumpkin);
+  box-shadow: 0 0 12px rgba(255, 117, 24, 0.35);
+}
+
+.hud-timer--warning .hud-timer__digits {
+  color: #ff9100;
+  text-shadow: 0 0 8px rgba(255, 145, 0, 0.6);
+}
+
+/* Tier 2: Urgent critical tension (1s - 10s) */
+.hud-timer--urgent {
+  border-color: #ff1744;
+  animation: hudTimerPulse 0.75s ease-in-out infinite;
+}
+
 .hud-timer--urgent .hud-timer__digits {
-  color: var(--colour-blood-red);
-  text-shadow: 0 0 12px var(--colour-blood-glow);
-  animation: flicker 0.6s infinite alternate;
+  color: #ff1744;
+  text-shadow: 0 0 14px var(--colour-blood-glow);
+}
+
+/* Tier 3: Expired survival session (0s) */
+.hud-timer--expired {
+  border-color: #d50000;
+  box-shadow: 0 0 20px rgba(213, 0, 0, 0.7);
+}
+
+.hud-timer--expired .hud-timer__digits {
+  color: #d50000;
+  text-shadow: 0 0 18px rgba(213, 0, 0, 0.9);
+}
+
+@keyframes hudTimerPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 10px rgba(255, 23, 68, 0.4);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 22px rgba(255, 23, 68, 0.85);
+  }
 }
 
 /* Bottom HUD bar: Ammo cylinder & Status */

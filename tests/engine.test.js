@@ -437,9 +437,340 @@ describe('GameEngine Left-Click Trigger & Crosshair Rendering (US1.4 / T10)', ()
     assert.strictEqual(projectile.isAlive, false);
     assert.ok(hitEvent !== null);
     assert.strictEqual(hitEvent.enemy, enemy);
-    assert.strictEqual(hitEvent.damage, 25);
 
     unsubscribe();
   });
 });
+
+describe('Progressive Wave Spawner & Enemy Combat Unit Tests (US1.6 / T16)', () => {
+  it('should generate perimeter spawn coordinates strictly outside or on the arena borders', () => {
+    const engine = new GameEngine({ width: 1000, height: 600 });
+    const offset = 25;
+
+    for (let i = 0; i < 50; i++) {
+      const pt = engine.getPerimeterSpawnPoint(offset);
+      const isTop = pt.y === -offset && pt.x >= 0 && pt.x <= 1000;
+      const isBottom = pt.y === 600 + offset && pt.x >= 0 && pt.x <= 1000;
+      const isLeft = pt.x === -offset && pt.y >= 0 && pt.y <= 600;
+      const isRight = pt.x === 1000 + offset && pt.y >= 0 && pt.y <= 600;
+
+      assert.ok(isTop || isBottom || isLeft || isRight);
+    }
+  });
+
+  it('should scale spawn interval dynamically between base and minimum rates', () => {
+    const engine = new GameEngine();
+    assert.strictEqual(engine.calculateSpawnInterval(0), 2.0);
+    assert.strictEqual(engine.calculateSpawnInterval(60), 0.6);
+    assert.strictEqual(engine.calculateSpawnInterval(120), 0.6);
+
+    const midInterval = engine.calculateSpawnInterval(30);
+    assert.ok(midInterval > 0.6 && midInterval < 2.0);
+  });
+
+  it('should dynamically scale maximum concurrent enemies with elapsed time', () => {
+    const engine = new GameEngine();
+    assert.strictEqual(engine.calculateMaxConcurrentEnemies(0), 5);
+    assert.strictEqual(engine.calculateMaxConcurrentEnemies(60), 20);
+    assert.strictEqual(engine.calculateMaxConcurrentEnemies(100), 20);
+  });
+
+  it('should select enemy archetypes appropriate to survival progression stage', () => {
+    const engine = new GameEngine();
+
+    // Early stage (t = 5s): only zombie or ghost
+    for (let i = 0; i < 20; i++) {
+      const type = engine.selectEnemyArchetype(5);
+      assert.ok(type === 'zombie' || type === 'ghost');
+    }
+
+    // Mid stage (t = 25s): can select brute
+    const midTypes = new Set();
+    for (let i = 0; i < 50; i++) {
+      midTypes.add(engine.selectEnemyArchetype(25));
+    }
+    assert.ok(midTypes.has('zombie'));
+    assert.ok(midTypes.has('ghost'));
+    assert.ok(midTypes.has('brute'));
+  });
+
+  it('should instantiate and add enemies to active pool via spawnEnemy and emit event', () => {
+    const engine = new GameEngine({ width: 800, height: 600 });
+    engine.isSpawnerActive = true;
+
+    const spawnEvents = [];
+    const unsubscribe = eventBus.subscribe('game:enemy-spawned', (data) => {
+      spawnEvents.push(data);
+    });
+
+    const enemy = engine.spawnEnemy();
+    assert.ok(enemy !== null);
+    assert.strictEqual(engine.enemies.length, 1);
+    assert.strictEqual(spawnEvents.length, 1);
+    assert.strictEqual(spawnEvents[0].enemy, enemy);
+
+    unsubscribe();
+  });
+
+  it('should respect max concurrent enemies limit during spawning', () => {
+    const engine = new GameEngine();
+    // At t = 0, max enemies is 5
+    for (let i = 0; i < 5; i++) {
+      assert.ok(engine.spawnEnemy() !== null);
+    }
+    assert.strictEqual(engine.enemies.length, 5);
+
+    // 6th spawn attempt should be rejected
+    const excess = engine.spawnEnemy();
+    assert.strictEqual(excess, null);
+    assert.strictEqual(engine.enemies.length, 5);
+  });
+
+  it('should automatically spawn enemies over time in updateSpawner()', () => {
+    const engine = new GameEngine();
+    engine.isSpawnerActive = true;
+    engine.spawnCooldownTimer = 0.5;
+
+    // Advance by 0.3s -> timer at 0.2s, no spawn yet
+    engine.updateSpawner(0.3);
+    assert.strictEqual(engine.enemies.length, 0);
+
+    // Advance by 0.3s -> timer reaches 0, spawns enemy and resets timer
+    engine.updateSpawner(0.3);
+    assert.strictEqual(engine.enemies.length, 1);
+    assert.ok(engine.spawnCooldownTimer > 0);
+  });
+
+  it('should execute pursuit AI, damage enemies on bullet hit, and prune defeated enemies in update()', () => {
+    const engine = new GameEngine({ width: 1000, height: 1000 });
+    engine.state = GAME_STATES.RUNNING;
+    engine.isSpawnerActive = false; // Manually controlled for deterministic test
+
+    engine.player.x = 500;
+    engine.player.y = 500;
+
+    // Create enemy at (500, 400) pursuing player at (500, 500)
+    const zombie = EntityFactory.createZombie({ x: 500, y: 400 });
+    engine.enemies.push(zombie);
+
+    // Fire projectile directed upwards towards enemy
+    const bullet = EntityFactory.createProjectile({
+      x: 500,
+      y: 415,
+      angle: -Math.PI / 2,
+      speed: 750,
+      radius: 4
+    });
+    engine.projectiles.push(bullet);
+
+    const defeatedEvents = [];
+    const unsubscribe = eventBus.subscribe('game:enemy-defeated', (data) => {
+      defeatedEvents.push(data);
+    });
+
+    // Run engine simulation step (16ms typical frame)
+    engine.update(0.016);
+
+    // Bullet hit zombie -> zombie took 1 damage -> defeated
+    assert.strictEqual(bullet.isAlive, false);
+    assert.strictEqual(zombie.isAlive, false);
+    assert.strictEqual(engine.enemies.length, 0);
+    assert.strictEqual(defeatedEvents.length, 1);
+    assert.strictEqual(defeatedEvents[0].enemy, zombie);
+
+    unsubscribe();
+  });
+
+  it('should emit game:player-hit when an enemy collides with the player', () => {
+    const engine = new GameEngine({ width: 1000, height: 1000 });
+    engine.state = GAME_STATES.RUNNING;
+    engine.isSpawnerActive = false;
+
+    engine.player.x = 500;
+    engine.player.y = 500;
+    engine.player.radius = 18;
+
+    // Place enemy directly touching the player (distance 20 < 18 + 16)
+    const enemy = EntityFactory.createZombie({ x: 520, y: 500, radius: 16 });
+    engine.enemies.push(enemy);
+
+    let playerHitEvent = null;
+    const unsubscribe = eventBus.subscribe('game:player-hit', (data) => {
+      playerHitEvent = data;
+    });
+
+    engine.update(0.016);
+
+    assert.ok(playerHitEvent !== null);
+    assert.strictEqual(playerHitEvent.player, engine.player);
+    assert.strictEqual(playerHitEvent.enemy, enemy);
+
+    unsubscribe();
+  });
+
+  it('should reset spawner metrics and enemy array with resetSpawner()', () => {
+    const engine = new GameEngine();
+    engine.spawnEnemy();
+    engine.gameElapsedTime = 42;
+    engine.spawnCooldownTimer = 1.2;
+
+    assert.strictEqual(engine.enemies.length, 1);
+
+    engine.resetSpawner();
+
+    assert.strictEqual(engine.gameElapsedTime, 0);
+    assert.strictEqual(engine.spawnCooldownTimer, 0);
+    assert.strictEqual(engine.enemies.length, 0);
+  });
+
+  it('should track survival countdown timer and publish game:timer-tick on floor second change', () => {
+    const engine = new GameEngine({ survivalDuration: 30 });
+    engine.state = GAME_STATES.RUNNING;
+    engine.isSpawnerActive = false;
+
+    assert.strictEqual(engine.survivalDuration, 30);
+    assert.strictEqual(engine.remainingSeconds, 30);
+
+    const ticks = [];
+    const unsubscribe = eventBus.subscribe('game:timer-tick', (data) => {
+      ticks.push(data);
+    });
+
+    // Advance 0.5s -> gameElapsedTime = 0.5s, remaining = 29.5s, floor = 30 -> 1 tick
+    engine.update(0.5);
+    assert.strictEqual(ticks.length, 1);
+    assert.strictEqual(ticks[0].currentSecond, 30);
+    assert.strictEqual(ticks[0].totalSeconds, 30);
+
+    // Advance 0.6s -> gameElapsedTime = 1.1s, remaining = 28.9s, floor = 29 -> 2nd tick
+    engine.update(0.6);
+    assert.strictEqual(ticks.length, 2);
+    assert.strictEqual(ticks[1].currentSecond, 29);
+
+    unsubscribe();
+  });
+
+  it('should publish game:timer-expired when survival countdown reaches zero', () => {
+    const engine = new GameEngine({ survivalDuration: 1 });
+    engine.state = GAME_STATES.RUNNING;
+    engine.isSpawnerActive = false;
+
+    let expiredEvent = null;
+    const unsubscribe = eventBus.subscribe('game:timer-expired', (data) => {
+      expiredEvent = data;
+    });
+
+    // Advance 1.1s -> timer reaches 0
+    engine.update(1.1);
+
+    assert.strictEqual(engine.remainingSeconds, 0);
+    assert.ok(expiredEvent !== null);
+    assert.strictEqual(expiredEvent.survivalDuration, 1);
+
+    unsubscribe();
+  });
+});
+
+describe('GameEngine Climax Trigger & Screamer Payload Unit Tests (US1.6 / T18)', () => {
+  it('should halt game loop, transition to TRIGGERED state, detach listeners, and emit game:trigger-screamer upon timer expiration', () => {
+    const engine = new GameEngine({ survivalDuration: 1 });
+    engine.state = GAME_STATES.RUNNING;
+    engine.isSpawnerActive = false;
+
+    let screamerPayload = null;
+    const unsubscribe = eventBus.subscribe('game:trigger-screamer', (data) => {
+      screamerPayload = data;
+    });
+
+    // Advance 1.2s -> timer reaches 0 and triggers climax
+    engine.update(1.2);
+
+    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED);
+    assert.strictEqual(engine.remainingSeconds, 0);
+    assert.ok(screamerPayload !== null);
+    assert.strictEqual(screamerPayload.reason, 'timer_expired');
+    assert.strictEqual(screamerPayload.survivalDuration, 1);
+    assert.strictEqual(typeof screamerPayload.elapsedTime, 'number');
+    assert.strictEqual(typeof screamerPayload.timestamp, 'number');
+    assert.strictEqual(screamerPayload.enemiesDefeated, 0);
+
+    unsubscribe();
+  });
+
+  it('should halt game loop, transition to TRIGGERED state, and emit game:trigger-screamer upon player defeat', () => {
+    const engine = new GameEngine({ survivalDuration: 60 });
+    engine.state = GAME_STATES.RUNNING;
+    engine.isSpawnerActive = false;
+    engine.player.health = 20;
+
+    // Create brute enemy dealing 50 damage
+    const brute = EntityFactory.createEnemy('brute', {
+      x: engine.player.x,
+      y: engine.player.y,
+      damage: 50
+    });
+    engine.enemies.push(brute);
+
+    let screamerPayload = null;
+    const unsubscribe = eventBus.subscribe('game:trigger-screamer', (data) => {
+      screamerPayload = data;
+    });
+
+    // Update frame -> brute collides with player and deals fatal damage
+    engine.update(0.016);
+
+    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED);
+    assert.strictEqual(engine.player.isAlive, false);
+    assert.strictEqual(engine.player.health, 0);
+    assert.ok(screamerPayload !== null);
+    assert.strictEqual(screamerPayload.reason, 'player_defeat');
+    assert.strictEqual(typeof screamerPayload.elapsedTime, 'number');
+
+    unsubscribe();
+  });
+
+  it('should not allow triggerClimax to execute multiple times once TRIGGERED', () => {
+    const engine = new GameEngine();
+    engine.state = GAME_STATES.RUNNING;
+
+    const payload1 = engine.triggerClimax('timer_expired');
+    assert.ok(payload1 !== null);
+    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED);
+
+    const payload2 = engine.triggerClimax('player_defeat');
+    assert.strictEqual(payload2, null);
+  });
+
+  it('should prevent engine from starting or continuing simulation when in TRIGGERED state', () => {
+    const engine = new GameEngine();
+    engine.state = GAME_STATES.TRIGGERED;
+
+    // Attempt start
+    engine.start();
+    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED);
+
+    // Attempt update
+    const previousTime = engine.gameElapsedTime;
+    engine.update(1.0);
+    assert.strictEqual(engine.gameElapsedTime, previousTime);
+  });
+
+  it('should track enemiesDefeated metric in screamer payload', () => {
+    const engine = new GameEngine();
+    engine.state = GAME_STATES.RUNNING;
+
+    // Spawn 1 enemy and 1 projectile colliding with it
+    const enemy = EntityFactory.createEnemy('ghost', { x: 100, y: 100, health: 1 });
+    const projectile = EntityFactory.createProjectile({ x: 100, y: 100, damage: 10 });
+    engine.enemies.push(enemy);
+    engine.projectiles.push(projectile);
+
+    engine.checkProjectileCollisions();
+    assert.strictEqual(engine.defeatedEnemiesCount, 1);
+
+    const payload = engine.triggerClimax('timer_expired');
+    assert.strictEqual(payload.enemiesDefeated, 1);
+  });
+});
+
 

@@ -32,6 +32,8 @@ export class GameView {
     /** @type {HTMLElement|null} */
     this.timerContainer = null;
     /** @type {HTMLElement|null} */
+    this.timerIcon = null;
+    /** @type {HTMLElement|null} */
     this.ammoCylinder = null;
     /** @type {HTMLElement|null} */
     this.ammoLabel = null;
@@ -52,6 +54,8 @@ export class GameView {
     this.unsubscribeAmmo = null;
     /** @type {Function|null} */
     this.unsubscribeMute = null;
+    /** @type {Function|null} */
+    this.unsubscribeTimer = null;
   }
 
   /**
@@ -105,7 +109,8 @@ export class GameView {
     const timerContainer = document.createElement('div');
     timerContainer.className = 'hud-timer';
     timerContainer.setAttribute('role', 'timer');
-    timerContainer.setAttribute('aria-label', 'Survival Time Remaining');
+    timerContainer.setAttribute('aria-live', 'polite');
+    timerContainer.setAttribute('aria-label', 'Survival Time Remaining: 00:60');
 
     const timerIcon = document.createElement('span');
     timerIcon.className = 'hud-timer__icon';
@@ -203,6 +208,7 @@ export class GameView {
     this.videoElement = video;
     this.timerContainer = timerContainer;
     this.timerDigits = timerDigits;
+    this.timerIcon = timerIcon;
     this.ammoCylinder = ammoCylinder;
     this.ammoLabel = ammoLabel;
     this.audioToggleBtn = audioToggleBtn;
@@ -243,11 +249,23 @@ export class GameView {
           this.syncAudioMuteUI(data.isMuted);
         }
       });
+
+      this.unsubscribeTimer = eventBus.subscribe('game:timer-tick', (data) => {
+        if (data && typeof data.remainingSeconds === 'number') {
+          this.updateTimer(data.remainingSeconds);
+        }
+      });
+
+      this.unsubscribeScreamer = eventBus.subscribe('game:trigger-screamer', () => {
+        if (audioService && typeof audioService.stopAmbient === 'function') {
+          audioService.stopAmbient();
+        }
+      });
     }
   }
 
   /**
-   * Update the survival timer display on the HUD.
+   * Update the survival timer display on the HUD with progressive visual tension.
    *
    * @param {number} remainingSeconds - Total remaining seconds.
    */
@@ -263,12 +281,27 @@ export class GameView {
 
     this.timerDigits.textContent = formatted;
 
-    // Apply urgent warning styles for final 10 seconds
     if (this.timerContainer) {
-      if (safeSeconds <= 10 && safeSeconds > 0) {
+      this.timerContainer.setAttribute('aria-label', `Survival Time Remaining: ${formatted}`);
+
+      // Progressive visual tension styling:
+      // Tier 3: Expired (0s): skull icon, crimson alert
+      // Tier 2: Urgent (1s - 10s): red heartbeat pulse, flashing beacon icon
+      // Tier 1: Warning (11s - 20s): pumpkin orange glow, hourglass icon
+      // Normal (> 20s): calm stopwatch
+      this.timerContainer.classList.remove('hud-timer--warning', 'hud-timer--urgent', 'hud-timer--expired');
+
+      if (safeSeconds === 0) {
+        this.timerContainer.classList.add('hud-timer--expired');
+        if (this.timerIcon) this.timerIcon.textContent = '💀';
+      } else if (safeSeconds <= 10) {
         this.timerContainer.classList.add('hud-timer--urgent');
+        if (this.timerIcon) this.timerIcon.textContent = '🚨';
+      } else if (safeSeconds <= 20) {
+        this.timerContainer.classList.add('hud-timer--warning');
+        if (this.timerIcon) this.timerIcon.textContent = '⏳';
       } else {
-        this.timerContainer.classList.remove('hud-timer--urgent');
+        if (this.timerIcon) this.timerIcon.textContent = '⏱️';
       }
     }
   }
@@ -394,6 +427,16 @@ export class GameView {
       this.unsubscribeMute = null;
     }
 
+    if (typeof this.unsubscribeTimer === 'function') {
+      this.unsubscribeTimer();
+      this.unsubscribeTimer = null;
+    }
+
+    if (typeof this.unsubscribeScreamer === 'function') {
+      this.unsubscribeScreamer();
+      this.unsubscribeScreamer = null;
+    }
+
     if (this.boundUserGesture && typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
       window.removeEventListener('click', this.boundUserGesture);
       window.removeEventListener('keydown', this.boundUserGesture);
@@ -424,6 +467,7 @@ export class GameView {
     this.videoElement = null;
     this.timerDigits = null;
     this.timerContainer = null;
+    this.timerIcon = null;
     this.ammoCylinder = null;
     this.ammoLabel = null;
     this.audioToggleBtn = null;

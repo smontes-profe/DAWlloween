@@ -20,7 +20,8 @@ export const GAME_STATES = Object.freeze({
   IDLE: 'IDLE',
   RUNNING: 'RUNNING',
   PAUSED: 'PAUSED',
-  STOPPED: 'STOPPED'
+  STOPPED: 'STOPPED',
+  TRIGGERED: 'TRIGGERED'
 });
 
 /**
@@ -42,7 +43,8 @@ export class GameEngine {
     width = 1280,
     height = 720,
     player = null,
-    weapon = null
+    weapon = null,
+    survivalDuration = 60
   } = {}) {
     /** @type {HTMLCanvasElement|null} */
     this.canvas = canvas;
@@ -91,6 +93,19 @@ export class GameEngine {
     this.boundHandleKeyUp = this.handleKeyUp.bind(this);
     this.boundHandleMouseMove = this.handleMouseMove.bind(this);
     this.boundHandleMouseDown = this.handleMouseDown.bind(this);
+
+    /** Progressive wave spawner properties (US1.6 / T16) */
+    this.isSpawnerActive = true;
+    this.gameElapsedTime = 0;
+    this.spawnCooldownTimer = 0;
+    this.baseSpawnInterval = 2.0;
+    this.minSpawnInterval = 0.6;
+
+    /** Survival countdown timer properties (US1.6 / T17) */
+    this.survivalDuration = Math.max(1, Number(survivalDuration));
+    this.remainingSeconds = this.survivalDuration;
+    this.lastDispatchedSecond = -1;
+    this.defeatedEnemiesCount = 0;
   }
 
   /**
@@ -290,6 +305,156 @@ export class GameEngine {
   }
 
   /**
+   * Generates a coordinate situated along the arena perimeter outside the visible viewport.
+   *
+   * @param {number} [offset=24] - Distance in pixels outside arena borders.
+   * @returns {{ x: number, y: number }} Perimeter coordinate.
+   */
+  getPerimeterSpawnPoint(offset = 24) {
+    // 0: North, 1: South, 2: West, 3: East
+    const side = Math.floor(Math.random() * 4);
+    let x = 0;
+    let y = 0;
+
+    switch (side) {
+      case 0: // North
+        x = Math.random() * this.width;
+        y = -offset;
+        break;
+      case 1: // South
+        x = Math.random() * this.width;
+        y = this.height + offset;
+        break;
+      case 2: // West
+        x = -offset;
+        y = Math.random() * this.height;
+        break;
+      case 3: // East
+      default:
+        x = this.width + offset;
+        y = Math.random() * this.height;
+        break;
+    }
+
+    return { x, y };
+  }
+
+  /**
+   * Selects an enemy archetype based on survival time progression.
+   *
+   * @param {number} elapsedTime - Total elapsed seconds in survival session.
+   * @returns {string} Archetype key ('zombie', 'ghost', 'brute').
+   */
+  selectEnemyArchetype(elapsedTime) {
+    const roll = Math.random();
+
+    if (elapsedTime < 15) {
+      // Early wave: predominantly shambling zombies, occasional swift ghost
+      return roll < 0.8 ? 'zombie' : 'ghost';
+    }
+
+    if (elapsedTime < 35) {
+      // Mid wave: mix of zombies, ghosts, and early brute tanks
+      if (roll < 0.5) return 'zombie';
+      if (roll < 0.85) return 'ghost';
+      return 'brute';
+    }
+
+    // Climax / late wave: high intensity
+    if (roll < 0.35) return 'zombie';
+    if (roll < 0.7) return 'ghost';
+    return 'brute';
+  }
+
+  /**
+   * Calculates dynamic spawn delay based on elapsed survival time.
+   *
+   * @param {number} elapsedTime - Total elapsed time in seconds.
+   * @returns {number} Seconds until next spawn.
+   */
+  calculateSpawnInterval(elapsedTime) {
+    const progress = Math.min(Math.max(elapsedTime / 60, 0), 1);
+    const interval = this.baseSpawnInterval - progress * (this.baseSpawnInterval - this.minSpawnInterval);
+    return Math.max(this.minSpawnInterval, Math.round(interval * 1000) / 1000);
+  }
+
+  /**
+   * Calculates maximum simultaneous active enemies to prevent framerate dips.
+   *
+   * @param {number} elapsedTime - Total elapsed time in seconds.
+   * @returns {number} Allowed maximum active enemies.
+   */
+  calculateMaxConcurrentEnemies(elapsedTime) {
+    const progress = Math.min(Math.max(elapsedTime / 60, 0), 1);
+    return Math.min(20, Math.floor(5 + progress * 15));
+  }
+
+  /**
+   * Instantiates a new enemy on the arena perimeter and adds it to the active pool.
+   *
+   * @returns {Object|null} The spawned enemy entity or null if capacity reached.
+   */
+  spawnEnemy() {
+    const maxEnemies = this.calculateMaxConcurrentEnemies(this.gameElapsedTime);
+    const aliveCount = this.enemies.filter((e) => e && e.isAlive).length;
+
+    if (aliveCount >= maxEnemies) {
+      return null;
+    }
+
+    const archetype = this.selectEnemyArchetype(this.gameElapsedTime);
+    const spawnPos = this.getPerimeterSpawnPoint();
+
+    const enemy = EntityFactory.createEnemy(archetype, {
+      x: spawnPos.x,
+      y: spawnPos.y
+    });
+
+    this.enemies.push(enemy);
+
+    if (eventBus && typeof eventBus.publish === 'function') {
+      eventBus.publish('game:enemy-spawned', {
+        enemy,
+        archetype,
+        x: spawnPos.x,
+        y: spawnPos.y
+      });
+    }
+
+    return enemy;
+  }
+
+  /**
+   * Progresses the enemy wave spawner over delta-time.
+   *
+   * @param {number} deltaTime - Frame duration in seconds.
+   */
+  updateSpawner(deltaTime) {
+    if (!this.isSpawnerActive) {
+      return;
+    }
+
+    this.spawnCooldownTimer -= deltaTime;
+
+    if (this.spawnCooldownTimer <= 0) {
+      this.spawnEnemy();
+      this.spawnCooldownTimer = this.calculateSpawnInterval(this.gameElapsedTime);
+    }
+  }
+
+  /**
+   * Resets spawner elapsed time, cooldown timers, active enemies pool, and countdown timer.
+   */
+  resetSpawner() {
+    this.gameElapsedTime = 0;
+    this.spawnCooldownTimer = 0;
+    this.enemies = [];
+    this.remainingSeconds = this.survivalDuration;
+    this.lastDispatchedSecond = -1;
+    this.defeatedEnemiesCount = 0;
+  }
+
+  /**
    * Evaluates collision detection between active projectiles and enemy entities.
    * Marks colliding projectiles as dead and dispatches collision notifications.
    *
@@ -310,12 +475,28 @@ export class GameEngine {
           projectile.isAlive = false;
           hits.push({ projectile, enemy });
 
+          const wasDefeated = typeof enemy.takeDamage === 'function'
+            ? enemy.takeDamage(projectile.damage || 1)
+            : true;
+
           if (eventBus && typeof eventBus.publish === 'function') {
             eventBus.publish('game:projectile-hit', {
               projectile,
               enemy,
-              damage: projectile.damage || 25
+              damage: projectile.damage || 1,
+              defeated: wasDefeated
             });
+
+            if (wasDefeated) {
+              this.defeatedEnemiesCount += 1;
+              eventBus.publish('game:enemy-defeated', {
+                enemy,
+                scoreValue: enemy.scoreValue || 10,
+                x: enemy.x,
+                y: enemy.y,
+                type: enemy.type
+              });
+            }
           }
           break;
         }
@@ -333,18 +514,50 @@ export class GameEngine {
   update(deltaTime) {
     if (this.state !== GAME_STATES.RUNNING) return;
 
-    // 0. Update weapon reload and fire rate throttle timers
+    // 0. Advance total session elapsed time
+    this.gameElapsedTime += deltaTime;
+
+    // 0.1. Update weapon reload and fire rate throttle timers
     if (this.weapon && typeof this.weapon.update === 'function') {
       this.weapon.update(deltaTime);
     }
 
-    // 0.1. Update crosshair recoil animation timer
+    // 0.2. Update crosshair recoil animation timer
     if (this.isFiringAnimationActive) {
       this.firingAnimationTimer -= deltaTime;
       if (this.firingAnimationTimer <= 0) {
         this.isFiringAnimationActive = false;
         this.firingAnimationTimer = 0;
       }
+    }
+
+    // 0.3. Progress progressive wave spawner
+    this.updateSpawner(deltaTime);
+
+    // 0.3. Progress survival countdown timer
+    this.remainingSeconds = Math.max(0, this.survivalDuration - this.gameElapsedTime);
+    const currentFloorSecond = Math.ceil(this.remainingSeconds);
+    if (currentFloorSecond !== this.lastDispatchedSecond) {
+      this.lastDispatchedSecond = currentFloorSecond;
+      if (eventBus && typeof eventBus.publish === 'function') {
+        eventBus.publish('game:timer-tick', {
+          remainingSeconds: this.remainingSeconds,
+          totalSeconds: this.survivalDuration,
+          currentSecond: currentFloorSecond
+        });
+
+        if (this.remainingSeconds <= 0) {
+          eventBus.publish('game:timer-expired', {
+            survivalDuration: this.survivalDuration
+          });
+        }
+      }
+    }
+
+    // Climax Trigger: Timer expiration
+    if (this.remainingSeconds <= 0) {
+      this.triggerClimax('timer_expired');
+      return;
     }
 
     // 1. Move player using exclusively WASD directional inputs and arena bounds
@@ -371,13 +584,50 @@ export class GameEngine {
     // 3. Evaluate collisions between projectiles and enemies
     this.checkProjectileCollisions();
 
-    // 4. Update enemies (open for US1.6)
+    // 4. Update enemies and pursue player
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const enemy = this.enemies[i];
-      if (enemy && typeof enemy.update === 'function') {
-        enemy.update(deltaTime, this.player);
+      if (enemy && enemy.isAlive) {
+        if (typeof enemy.pursue === 'function' && this.player) {
+          enemy.pursue(this.player.x, this.player.y, deltaTime);
+        } else if (typeof enemy.update === 'function') {
+          enemy.update(deltaTime, this.player);
+        }
+
+        // Check if enemy touches player
+        if (this.player && this.player.isAlive && typeof enemy.checkCollision === 'function') {
+          if (enemy.checkCollision(this.player)) {
+            const damage = enemy.damage || 25;
+            let playerDefeated = false;
+            if (typeof this.player.takeDamage === 'function') {
+              playerDefeated = this.player.takeDamage(damage);
+            } else {
+              this.player.health = Math.max(0, (this.player.health || 0) - damage);
+              if (this.player.health <= 0) {
+                this.player.isAlive = false;
+                playerDefeated = true;
+              }
+            }
+
+            if (eventBus && typeof eventBus.publish === 'function') {
+              eventBus.publish('game:player-hit', {
+                enemy,
+                player: this.player,
+                damage,
+                playerDefeated
+              });
+            }
+
+            // Climax Trigger: Player defeat
+            if (playerDefeated) {
+              this.triggerClimax('player_defeat');
+              return;
+            }
+          }
+        }
       }
-      if (!enemy.isAlive) {
+
+      if (!enemy || !enemy.isAlive) {
         this.enemies.splice(i, 1);
       }
     }
@@ -541,7 +791,7 @@ export class GameEngine {
    * Starts or resumes the game engine simulation and attaches listeners.
    */
   start() {
-    if (this.state === GAME_STATES.RUNNING) {
+    if (this.state === GAME_STATES.RUNNING || this.state === GAME_STATES.TRIGGERED) {
       return;
     }
 
@@ -580,6 +830,38 @@ export class GameEngine {
   }
 
   /**
+   * Triggers the game climax jumpscare sequence, immediately halting the game loop,
+   * detaching input listeners, transitioning state to TRIGGERED, and publishing
+   * the decoupled game:trigger-screamer event payload for EPIC2 consumption.
+   *
+   * @param {string} [reason='timer_expired'] - Reason for climax ('timer_expired' or 'player_defeat').
+   * @returns {Object|null} Published screamer payload, or null if already triggered.
+   */
+  triggerClimax(reason = 'timer_expired') {
+    if (this.state === GAME_STATES.TRIGGERED) {
+      return null;
+    }
+
+    this.state = GAME_STATES.TRIGGERED;
+    this.cancelLoop();
+    this.detachInputListeners();
+
+    const payload = {
+      reason,
+      elapsedTime: Math.round(this.gameElapsedTime * 1000) / 1000,
+      survivalDuration: this.survivalDuration,
+      enemiesDefeated: this.defeatedEnemiesCount,
+      timestamp: Date.now()
+    };
+
+    if (eventBus && typeof eventBus.publish === 'function') {
+      eventBus.publish('game:trigger-screamer', payload);
+    }
+
+    return payload;
+  }
+
+  /**
    * Cancels the active animation frame handle.
    */
   cancelLoop() {
@@ -609,6 +891,7 @@ export class GameEngine {
    */
   destroy() {
     this.stop();
+    this.resetSpawner();
     this.canvas = null;
     this.ctx = null;
     this.projectiles = [];

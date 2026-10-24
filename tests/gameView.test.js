@@ -161,19 +161,46 @@ describe('GameView Unit Tests', () => {
     assert.equal(bullets.length, 6);
   });
 
-  it('should format countdown timer and apply urgent styling under 10 seconds', () => {
+  it('should format countdown timer with progressive visual tension tiers (normal, warning, urgent, expired)', () => {
     const view = new GameView();
     view.mount(mockEnv.container);
 
-    // 45 seconds -> 00:45, not urgent
+    // 1. Normal state (45 seconds): no tension classes, stopwatch icon
     view.updateTimer(45);
     assert.equal(view.timerDigits.textContent, '00:45');
+    assert.equal(view.timerContainer.classList.contains('hud-timer--warning'), false);
     assert.equal(view.timerContainer.classList.contains('hud-timer--urgent'), false);
+    assert.equal(view.timerContainer.classList.contains('hud-timer--expired'), false);
+    assert.equal(view.timerIcon.textContent, '⏱️');
 
-    // 8 seconds -> 00:08, urgent warning
+    // 2. Warning state (15 seconds): warning class, hourglass icon
+    view.updateTimer(15);
+    assert.equal(view.timerDigits.textContent, '00:15');
+    assert.equal(view.timerContainer.classList.contains('hud-timer--warning'), true);
+    assert.equal(view.timerContainer.classList.contains('hud-timer--urgent'), false);
+    assert.equal(view.timerContainer.classList.contains('hud-timer--expired'), false);
+    assert.equal(view.timerIcon.textContent, '⏳');
+
+    // 3. Urgent state (8 seconds): urgent class, beacon icon
     view.updateTimer(8);
     assert.equal(view.timerDigits.textContent, '00:08');
+    assert.equal(view.timerContainer.classList.contains('hud-timer--warning'), false);
     assert.equal(view.timerContainer.classList.contains('hud-timer--urgent'), true);
+    assert.equal(view.timerContainer.classList.contains('hud-timer--expired'), false);
+    assert.equal(view.timerIcon.textContent, '🚨');
+
+    // 4. Expired state (0 seconds): expired class, skull icon
+    view.updateTimer(0);
+    assert.equal(view.timerDigits.textContent, '00:00');
+    assert.equal(view.timerContainer.classList.contains('hud-timer--warning'), false);
+    assert.equal(view.timerContainer.classList.contains('hud-timer--urgent'), false);
+    assert.equal(view.timerContainer.classList.contains('hud-timer--expired'), true);
+    assert.equal(view.timerIcon.textContent, '💀');
+
+    // 5. Reactive EventBus update on game:timer-tick
+    eventBus.publish('game:timer-tick', { remainingSeconds: 18 });
+    assert.equal(view.timerDigits.textContent, '00:18');
+    assert.equal(view.timerContainer.classList.contains('hud-timer--warning'), true);
   });
 
   it('should update ammo cylinder and reloading indicator', () => {
@@ -292,6 +319,26 @@ describe('GameView Unit Tests', () => {
     } finally {
       cameraService.isStreamActive = originalIsActive;
       cameraService.attachVideoElement = originalAttach;
+    }
+  });
+
+  it('should cease ambient playback when game:trigger-screamer event is published', () => {
+    let ambientStopped = false;
+    const originalStop = audioService.stopAmbient;
+    audioService.stopAmbient = () => {
+      ambientStopped = true;
+    };
+
+    try {
+      const view = new GameView();
+      view.mount(mockEnv.container);
+
+      eventBus.publish('game:trigger-screamer', { reason: 'timer_expired' });
+      assert.equal(ambientStopped, true);
+
+      view.unmount();
+    } finally {
+      audioService.stopAmbient = originalStop;
     }
   });
 
