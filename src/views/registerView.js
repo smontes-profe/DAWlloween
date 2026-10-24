@@ -7,6 +7,7 @@
  */
 
 import { captureService, generateFallbackAvatar } from '../screamer/capture.js';
+import { recorderService } from '../screamer/recorder.js';
 import { eventBus } from '../utils/eventBus.js';
 import { alerts } from '../ui/alerts.js';
 
@@ -72,6 +73,12 @@ export class RegisterView {
     /** @type {string|null} */
     this.snapshotDataUrl = null;
 
+    /** @type {string|null} */
+    this.videoUrl = null;
+
+    /** @type {boolean} */
+    this.hasVideo = false;
+
     /** @type {boolean} */
     this.isFallbackSnapshot = false;
 
@@ -92,6 +99,15 @@ export class RegisterView {
    */
   mount(container) {
     this.container = container;
+
+    // Retrieve active in-memory video recording or fallback to snapshot/avatar
+    if (recorderService && typeof recorderService.hasRecording === 'function' && recorderService.hasRecording()) {
+      this.videoUrl = recorderService.getVideoUrl();
+      this.hasVideo = true;
+    } else {
+      this.videoUrl = null;
+      this.hasVideo = false;
+    }
 
     // Retrieve active in-memory snapshot or provide fallback avatar
     if (captureService && typeof captureService.getSnapshot === 'function' && captureService.hasSnapshot()) {
@@ -185,10 +201,21 @@ export class RegisterView {
     }
 
     // Publish decoupled event payload for EPIC3 integration
+    const videoBlob = recorderService && typeof recorderService.getVideoBlob === 'function'
+      ? recorderService.getVideoBlob()
+      : null;
+    const mimeType = videoBlob && recorderService
+      ? (recorderService.recordedMimeType || 'video/webm')
+      : null;
+
     const payload = {
       nickname: validation.sanitizedNickname,
+      videoBlob,
+      videoUrl: this.videoUrl,
+      mimeType,
       photoDataUrl: this.snapshotDataUrl,
       isFallback: this.isFallbackSnapshot,
+      hasVideo: Boolean(videoBlob),
       timestamp: Date.now()
     };
 
@@ -208,6 +235,9 @@ export class RegisterView {
    * Restarts the game flow by clearing transient snapshot and navigating to #play.
    */
   restartGame() {
+    if (recorderService && typeof recorderService.clearRecording === 'function') {
+      recorderService.clearRecording();
+    }
     if (captureService && typeof captureService.clearSnapshot === 'function') {
       captureService.clearSnapshot();
     }
@@ -240,10 +270,16 @@ export class RegisterView {
       this.container = null;
     }
 
+    if (recorderService && typeof recorderService.clearRecording === 'function') {
+      recorderService.clearRecording();
+    }
+
     this.boundRestartHandler = null;
     this.boundSubmitHandler = null;
     this.boundInputHandler = null;
     this.snapshotDataUrl = null;
+    this.videoUrl = null;
+    this.hasVideo = false;
     this.isFallbackSnapshot = false;
   }
 
@@ -253,13 +289,30 @@ export class RegisterView {
    * @returns {string} HTML markup string.
    */
   template() {
-    const badgeText = this.isFallbackSnapshot
-      ? '🎃 Avatar Fantasmal'
-      : '📸 Foto Reacción';
+    let badgeText;
+    let badgeClass;
 
-    const badgeClass = this.isFallbackSnapshot
-      ? 'polaroid-card__badge polaroid-card__badge--fallback'
-      : 'polaroid-card__badge';
+    if (this.hasVideo && this.videoUrl) {
+      badgeText = '🎬 Vídeo Reacción';
+      badgeClass = 'polaroid-card__badge polaroid-card__badge--video';
+    } else if (this.isFallbackSnapshot) {
+      badgeText = '🎃 Avatar Fantasmal';
+      badgeClass = 'polaroid-card__badge polaroid-card__badge--fallback';
+    } else {
+      badgeText = '📸 Foto Reacción';
+      badgeClass = 'polaroid-card__badge';
+    }
+
+    const visualMediaMarkup = (this.hasVideo && this.videoUrl)
+      ? `<video src="${this.videoUrl}"
+                autoplay loop muted playsinline
+                class="polaroid-card__video"
+                id="reaction-video-preview"
+                aria-label="Vídeo de tu reacción"></video>`
+      : `<img src="${this.snapshotDataUrl}"
+              alt="Reacción capturada durante el susto de DAWlloween"
+              class="polaroid-card__photo"
+              id="reaction-photo-preview" />`;
 
     return `
       <section class="register-view" aria-labelledby="register-view-heading">
@@ -270,10 +323,7 @@ export class RegisterView {
             <div class="polaroid-card__tape" aria-hidden="true"></div>
 
             <div class="polaroid-card__photo-frame">
-              <img src="${this.snapshotDataUrl}"
-                   alt="Reacción capturada durante el susto de DAWlloween"
-                   class="polaroid-card__photo"
-                   id="reaction-photo-preview" />
+              ${visualMediaMarkup}
             </div>
 
             <div class="polaroid-card__caption">

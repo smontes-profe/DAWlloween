@@ -8,6 +8,7 @@ import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { RegisterView, registerView, validateNickname } from '../src/views/registerView.js';
 import { captureService } from '../src/screamer/capture.js';
+import { recorderService } from '../src/screamer/recorder.js';
 import { Router, registerApplicationRoutes } from '../src/app.js';
 import { eventBus } from '../src/utils/eventBus.js';
 
@@ -145,6 +146,9 @@ describe('RegisterView Component Unit Tests (US2.3 / T5, T6)', () => {
     if (captureService) {
       captureService.clearSnapshot();
     }
+    if (recorderService) {
+      recorderService.clearRecording();
+    }
   });
 
   afterEach(() => {
@@ -153,6 +157,9 @@ describe('RegisterView Component Unit Tests (US2.3 / T5, T6)', () => {
     }
     if (captureService) {
       captureService.clearSnapshot();
+    }
+    if (recorderService) {
+      recorderService.clearRecording();
     }
     if (originalWindow !== undefined) {
       global.window = originalWindow;
@@ -196,6 +203,25 @@ describe('RegisterView Component Unit Tests (US2.3 / T5, T6)', () => {
 
     assert.ok(container.innerHTML.includes('🎃 Avatar Fantasmal'));
     assert.ok(container.innerHTML.includes('data:image/svg+xml'));
+  });
+
+  it('should render looping video and video reaction badge when video recording exists (US2.4 / T8)', () => {
+    const { mockWindow, container } = createMockDom();
+    global.window = mockWindow;
+
+    recorderService.currentVideoBlob = new Blob(['mock-bytes'], { type: 'video/webm' });
+    recorderService.currentVideoUrl = 'blob:http://localhost:3000/mock-reaction-video';
+
+    try {
+      view.mount(container);
+
+      assert.ok(container.innerHTML.includes('id="reaction-video-preview"'));
+      assert.ok(container.innerHTML.includes('blob:http://localhost:3000/mock-reaction-video'));
+      assert.ok(container.innerHTML.includes('🎬 Vídeo Reacción'));
+      assert.ok(container.innerHTML.includes('polaroid-card__badge--video'));
+    } finally {
+      recorderService.clearRecording();
+    }
   });
 
   it('should navigate to #play and clear snapshot when restart button is clicked', () => {

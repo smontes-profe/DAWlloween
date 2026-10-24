@@ -49,6 +49,35 @@ function createMockDom() {
         el.className = 'screamer-view';
         return el;
       }
+      if (selector === '.screamer-view__video' && this.innerHTML.includes('screamer-view__video')) {
+        const el = new MockElement('video');
+        el.className = 'screamer-view__video';
+        el.play = () => Promise.resolve();
+        el.pause = () => {};
+        el.load = () => {};
+        return el;
+      }
+      if (selector === '#screamer-chroma-canvas' && this.innerHTML.includes('screamer-chroma-canvas')) {
+        const el = new MockElement('canvas');
+        el.id = 'screamer-chroma-canvas';
+        el.style = {};
+        el.getContext = () => ({
+          drawImage: () => {},
+          getImageData: () => ({ data: new Uint8ClampedArray(16) }),
+          putImageData: () => {}
+        });
+        return el;
+      }
+      if (selector === '.screamer-view__monster' && this.innerHTML.includes('screamer-view__monster')) {
+        const el = new MockElement('svg');
+        el.className = 'screamer-view__monster';
+        el.classList = {
+          add: () => {},
+          remove: () => {},
+          contains: () => false
+        };
+        return el;
+      }
       return null;
     }
   }
@@ -102,7 +131,7 @@ describe('ScreamerView Unit Tests (US2.1 / T3)', () => {
     }
   });
 
-  it('should render jumpscare elements, role="alert", monster SVG, and strobe overlay on mount', () => {
+  it('should render jumpscare elements, role="alert", chroma canvas, and video element on mount', () => {
     const { mockWindow, container } = createMockDom();
     global.window = mockWindow;
 
@@ -110,35 +139,30 @@ describe('ScreamerView Unit Tests (US2.1 / T3)', () => {
 
     assert.ok(container.innerHTML.includes('class="screamer-view"'));
     assert.ok(container.innerHTML.includes('role="alert"'));
-    assert.ok(container.innerHTML.includes('screamer-view__strobe'));
+    assert.ok(container.innerHTML.includes('screamer-view__video'));
+    assert.ok(container.innerHTML.includes('screamer-chroma-canvas'));
     assert.ok(container.innerHTML.includes('screamer-view__shake'));
-    assert.ok(container.innerHTML.includes('screamer-view__monster'));
     assert.ok(container.innerHTML.includes('screamer-view__skip-btn'));
   });
 
-  it('should trigger audioService.playScreamer() upon mount', () => {
-    const { mockWindow, container } = createMockDom();
-    global.window = mockWindow;
-
-    let playScreamerCalled = false;
-    const originalPlayScreamer = audioService.playScreamer;
-    audioService.playScreamer = () => { playScreamerCalled = true; };
-
-    try {
-      view.mount(container);
-      assert.strictEqual(playScreamerCalled, true);
-    } finally {
-      audioService.playScreamer = originalPlayScreamer;
-    }
-  });
-
-  it('should set an auto-transition timer to #register within 1.5s - 2.0s', () => {
+  it('should initialise video element with audio unmuted for authentic scare', () => {
     const { mockWindow, container } = createMockDom();
     global.window = mockWindow;
 
     view.mount(container);
 
-    assert.ok(mockWindow._lastDelay >= 1500 && mockWindow._lastDelay <= 2000);
+    assert.ok(view.videoElement);
+    assert.strictEqual(view.videoElement.muted, false);
+    assert.strictEqual(view.videoElement.volume, 1.0);
+  });
+
+  it('should set an auto-transition timer to #register for ~3.0s exposure', () => {
+    const { mockWindow, container } = createMockDom();
+    global.window = mockWindow;
+
+    view.mount(container);
+
+    assert.ok(mockWindow._lastDelay >= 2500 && mockWindow._lastDelay <= 3500);
     assert.strictEqual(mockWindow.location.hash, '#screamer');
 
     let transitionEventPublished = false;

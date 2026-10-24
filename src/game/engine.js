@@ -44,7 +44,7 @@ export class GameEngine {
     height = 720,
     player = null,
     weapon = null,
-    survivalDuration = 60
+    survivalDuration = 5
   } = {}) {
     /** @type {HTMLCanvasElement|null} */
     this.canvas = canvas;
@@ -106,6 +106,10 @@ export class GameEngine {
     this.remainingSeconds = this.survivalDuration;
     this.lastDispatchedSecond = -1;
     this.defeatedEnemiesCount = 0;
+
+    /** Climax trigger state to prevent duplicate activations while allowing continuous gameplay */
+    this.isClimaxTriggered = false;
+    this.climaxHaltTimeoutId = null;
   }
 
   /**
@@ -452,6 +456,15 @@ export class GameEngine {
     this.remainingSeconds = this.survivalDuration;
     this.lastDispatchedSecond = -1;
     this.defeatedEnemiesCount = 0;
+    this.isClimaxTriggered = false;
+    if (this.climaxHaltTimeoutId !== null) {
+      if (typeof window !== 'undefined' && typeof window.clearTimeout === 'function') {
+        window.clearTimeout(this.climaxHaltTimeoutId);
+      } else if (typeof clearTimeout === 'function') {
+        clearTimeout(this.climaxHaltTimeoutId);
+      }
+      this.climaxHaltTimeoutId = null;
+    }
   }
 
   /**
@@ -555,9 +568,8 @@ export class GameEngine {
     }
 
     // Climax Trigger: Timer expiration
-    if (this.remainingSeconds <= 0) {
+    if (this.remainingSeconds <= 0 && !this.isClimaxTriggered) {
       this.triggerClimax('timer_expired');
-      return;
     }
 
     // 1. Move player using exclusively WASD directional inputs and arena bounds
@@ -619,9 +631,8 @@ export class GameEngine {
             }
 
             // Climax Trigger: Player defeat
-            if (playerDefeated) {
+            if (playerDefeated && !this.isClimaxTriggered) {
               this.triggerClimax('player_defeat');
-              return;
             }
           }
         }
@@ -830,21 +841,20 @@ export class GameEngine {
   }
 
   /**
-   * Triggers the game climax jumpscare sequence, immediately halting the game loop,
-   * detaching input listeners, transitioning state to TRIGGERED, and publishing
-   * the decoupled game:trigger-screamer event payload for EPIC2 consumption.
+   * Triggers the game climax jumpscare sequence. Emits decoupled game:trigger-screamer event
+   * while allowing the game loop, physics, input, and rendering to continue seamlessly
+   * for approximately 3 seconds during the scare before halting simulation.
    *
    * @param {string} [reason='timer_expired'] - Reason for climax ('timer_expired' or 'player_defeat').
+   * @param {number} [haltDelayMs=3000] - Milliseconds to let the game continue running before halting.
    * @returns {Object|null} Published screamer payload, or null if already triggered.
    */
-  triggerClimax(reason = 'timer_expired') {
-    if (this.state === GAME_STATES.TRIGGERED) {
+  triggerClimax(reason = 'timer_expired', haltDelayMs = 3000) {
+    if (this.isClimaxTriggered) {
       return null;
     }
 
-    this.state = GAME_STATES.TRIGGERED;
-    this.cancelLoop();
-    this.detachInputListeners();
+    this.isClimaxTriggered = true;
 
     const payload = {
       reason,
@@ -858,7 +868,31 @@ export class GameEngine {
       eventBus.publish('game:trigger-screamer', payload);
     }
 
+    // Schedule game halt after delay (3 seconds) so the game continues running smoothly during the scare
+    if (haltDelayMs > 0) {
+      const scheduleTimeout = typeof window !== 'undefined' && typeof window.setTimeout === 'function'
+        ? window.setTimeout
+        : (typeof setTimeout === 'function' ? setTimeout : null);
+
+      if (scheduleTimeout) {
+        this.climaxHaltTimeoutId = scheduleTimeout(() => {
+          this.haltClimax();
+        }, haltDelayMs);
+      }
+    } else {
+      this.haltClimax();
+    }
+
     return payload;
+  }
+
+  /**
+   * Halts the game loop and detaches input listeners once the climax grace period has elapsed.
+   */
+  haltClimax() {
+    this.state = GAME_STATES.TRIGGERED;
+    this.cancelLoop();
+    this.detachInputListeners();
   }
 
   /**
@@ -881,6 +915,14 @@ export class GameEngine {
    * Stops the game engine and resets inputs.
    */
   stop() {
+    if (this.climaxHaltTimeoutId !== null) {
+      if (typeof window !== 'undefined' && typeof window.clearTimeout === 'function') {
+        window.clearTimeout(this.climaxHaltTimeoutId);
+      } else if (typeof clearTimeout === 'function') {
+        clearTimeout(this.climaxHaltTimeoutId);
+      }
+      this.climaxHaltTimeoutId = null;
+    }
     this.state = GAME_STATES.STOPPED;
     this.cancelLoop();
     this.detachInputListeners();

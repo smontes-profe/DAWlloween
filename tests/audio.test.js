@@ -287,7 +287,7 @@ describe('AudioManager Unit Tests (US1.5 / T13)', () => {
     assert.strictEqual(mockCtx.operations.length, initialOpCount);
   });
 
-  it('should trigger playScreamer automatically via screamer:play-sound and game:trigger-screamer events', () => {
+  it('should trigger playScreamer automatically via screamer:play-sound event', () => {
     originalWindow = global.window;
     const mockCtx = createMockAudioContext();
     global.window = { AudioContext: function () { return mockCtx; } };
@@ -299,9 +299,6 @@ describe('AudioManager Unit Tests (US1.5 / T13)', () => {
 
     eventBus.publish('screamer:play-sound', {});
     assert.strictEqual(screamerCalls, 1);
-
-    eventBus.publish('game:trigger-screamer', {});
-    assert.strictEqual(screamerCalls, 2);
   });
 
   it('should export singleton instance audioService', () => {

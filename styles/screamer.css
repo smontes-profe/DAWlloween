@@ -14,7 +14,7 @@
   width: 100vw;
   height: 100vh;
   z-index: 1000;
-  background-color: #000000;
+  background-color: transparent;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -28,12 +28,7 @@
    Rapidly alternates between blinding white, deep abyss, and blood red.
    -------------------------------------------------------------------------- */
 .screamer-view__strobe {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 2;
-  animation: screamer-strobe-flash 0.08s infinite alternate;
-  mix-blend-mode: hard-light;
+  display: none !important;
 }
 
 @keyframes screamer-strobe-flash {
@@ -92,9 +87,28 @@
 }
 
 /* --------------------------------------------------------------------------
-   4. Demonic Monster Silhouette
-   Expanding monstrous Jack-o'-Lantern / Demon face lunging at the camera.
+   4. Demonic Monster Silhouette & Chroma-Key Video Display
+   Expanding monstrous visuals lunging at the camera.
    -------------------------------------------------------------------------- */
+.screamer-view__video {
+  display: none;
+}
+
+.screamer-view__chroma-canvas {
+  max-width: 100vw;
+  max-height: 100vh;
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+  z-index: 3;
+  filter: drop-shadow(0 0 35px #ff1e42)
+          drop-shadow(0 0 80px rgba(255, 30, 66, 0.85));
+}
+
+.screamer-view__monster--hidden {
+  display: none !important;
+}
+
 .screamer-view__monster {
   width: min(85vmin, 720px);
   height: min(85vmin, 720px);
@@ -165,19 +179,7 @@
    Simulates distorted arcade CRT monitor overload during the shock.
    -------------------------------------------------------------------------- */
 .screamer-view__glitch {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 4;
-  background: radial-gradient(circle at center, transparent 35%, rgba(0, 0, 0, 0.9) 95%),
-              repeating-linear-gradient(
-                0deg,
-                rgba(0, 0, 0, 0.3) 0px,
-                rgba(0, 0, 0, 0.3) 2px,
-                transparent 2px,
-                transparent 4px
-              );
-  opacity: 0.75;
+  display: none !important;
 }
 
 /* --------------------------------------------------------------------------

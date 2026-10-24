@@ -1,20 +1,26 @@
 /**
  * @file screamerView.js
  * @description Fullscreen Jumpscare view component for DAWlloween.
- * Features aggressive visual shock effects (strobe flashing, gruesome demonic
- * silhouette, chaotic screen shake) and automatic timed transition to #register.
+ * Features real-time Chroma Key (green-screen removal) video playback using HTML5 Canvas,
+ * seamless transparent overlay right over the active gameplay screen,
+ * native video audio scream, and automatic timed transition to #register.
  * Follows strict UK English (en-GB) and zero local persistence.
  */
 
-import { audioService } from '../services/audio.js';
 import { eventBus } from '../utils/eventBus.js';
 
 /**
- * Duration in milliseconds before auto-transitioning from the jumpscare to #register.
- * Conforms to the 1.5s - 2.0s specification range.
+ * Duration in milliseconds before auto-transitioning to #register.
+ * Set to 3000ms (~3 seconds) to allow the active game and ambient experience to continue running during the jumpscare sequence.
  * @constant {number}
  */
-const SCREAMER_DURATION_MS = 1650;
+const DEFAULT_SCREAMER_DURATION_MS = 3000;
+
+/**
+ * Default video path for the jumpscare video asset.
+ * @constant {string}
+ */
+const JUMPSCARE_VIDEO_PATH = './assets/jumpscare.mp4';
 
 /**
  * ScreamerView component handling the climactic jumpscare shock sequence.
@@ -27,17 +33,61 @@ export class ScreamerView {
     /** @type {HTMLElement|null} */
     this.container = null;
 
+    /** @type {HTMLElement|null} */
+    this.overlayHost = null;
+
+    /** @type {HTMLVideoElement|null} */
+    this.videoElement = null;
+
+    /** @type {HTMLCanvasElement|null} */
+    this.chromaCanvas = null;
+
+    /** @type {CanvasRenderingContext2D|null} */
+    this.chromaCtx = null;
+
     /** @type {number|null} */
     this.transitionTimeoutId = null;
 
+    /** @type {number|null} */
+    this.animationFrameId = null;
+
     /** @type {boolean} */
     this.isTransitioning = false;
+
+    /** @type {boolean} */
+    this.isVideoActive = false;
 
     /** @type {((event: KeyboardEvent) => void)|null} */
     this.boundKeyDownHandler = null;
 
     /** @type {((event: MouseEvent) => void)|null} */
     this.boundClickHandler = null;
+
+    /** @type {(() => void)|null} */
+    this.boundVideoEndedHandler = null;
+
+    /** @type {(() => void)|null} */
+    this.boundVideoPlayHandler = null;
+
+    /** @type {(() => void)|null} */
+    this.boundVideoErrorHandler = null;
+  }
+
+  /**
+   * Mounts the jumpscare as a transparent overlay directly on top of an active view (e.g. game arena).
+   *
+   * @param {HTMLElement} [parent] - Target parent element (defaults to document.body).
+   */
+  mountOverlay(parent = (typeof document !== 'undefined' ? document.body : null)) {
+    if (!parent || typeof document === 'undefined' || typeof document.createElement !== 'function') {
+      return;
+    }
+    this.unmount();
+    const overlayWrapper = document.createElement('div');
+    overlayWrapper.id = 'screamer-overlay-host';
+    parent.appendChild(overlayWrapper);
+    this.overlayHost = overlayWrapper;
+    this.mount(overlayWrapper);
   }
 
   /**
@@ -48,16 +98,10 @@ export class ScreamerView {
   mount(container) {
     this.container = container;
     this.isTransitioning = false;
+    this.isVideoActive = false;
 
-    // Render fullscreen shock DOM structure
+    // Render transparent shock DOM structure over the active game view
     this.container.innerHTML = this.template();
-
-    // Trigger procedural screamer sound sting if available
-    try {
-      audioService.playScreamer();
-    } catch (error) {
-      console.warn('[ScreamerView] Audio screech synthesis fallback:', error);
-    }
 
     // Bind accessibility keyboard skip (Escape / Space / Enter)
     this.boundKeyDownHandler = (event) => {
@@ -66,7 +110,9 @@ export class ScreamerView {
         this.transitionToRegister();
       }
     };
-    window.addEventListener('keydown', this.boundKeyDownHandler);
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('keydown', this.boundKeyDownHandler);
+    }
 
     // Bind click / tap to skip
     const viewElement = this.container.querySelector('.screamer-view');
@@ -77,10 +123,152 @@ export class ScreamerView {
       viewElement.addEventListener('click', this.boundClickHandler);
     }
 
-    // Schedule automatic timed transition to #register
+    // Initialise Chroma-Key video pipeline
+    this.initialiseVideoChroma();
+
+    // Safety fallback timer if video never ends or fails silently
     this.transitionTimeoutId = window.setTimeout(() => {
       this.transitionToRegister();
-    }, SCREAMER_DURATION_MS);
+    }, DEFAULT_SCREAMER_DURATION_MS);
+  }
+
+  /**
+   * Initialises the HTML5 Video element and attaches real-time Chroma Key processing.
+   */
+  initialiseVideoChroma() {
+    if (!this.container) {
+      return;
+    }
+
+    this.videoElement = this.container.querySelector('.screamer-view__video');
+    this.chromaCanvas = this.container.querySelector('#screamer-chroma-canvas');
+    const monsterSvg = this.container.querySelector('.screamer-view__monster');
+
+    if (!this.videoElement || !this.chromaCanvas || typeof this.chromaCanvas.getContext !== 'function') {
+      return;
+    }
+
+    this.chromaCtx = this.chromaCanvas.getContext('2d');
+
+    // Video ended handler: retain the horrifying climactic frame on the chroma canvas
+    // over the running game until the 3-second exposure duration elapses
+    this.boundVideoEndedHandler = () => {
+      // Keep last frame rendered on canvas without cutting away abruptly
+    };
+    this.videoElement.addEventListener('ended', this.boundVideoEndedHandler);
+
+    // Video error handler -> fallback to SVG animation
+    this.boundVideoErrorHandler = () => {
+      console.warn('[ScreamerView] Jumpscare video unavailable or decoding failed. Falling back to SVG animation.');
+      if (monsterSvg) {
+        monsterSvg.classList.remove('screamer-view__monster--hidden');
+      }
+      if (this.chromaCanvas) {
+        this.chromaCanvas.style.display = 'none';
+      }
+    };
+    this.videoElement.addEventListener('error', this.boundVideoErrorHandler);
+
+    // Video play handler -> start real-time green screen removal loop
+    this.boundVideoPlayHandler = () => {
+      this.isVideoActive = true;
+      if (monsterSvg) {
+        monsterSvg.classList.add('screamer-view__monster--hidden');
+      }
+      if (this.chromaCanvas) {
+        this.chromaCanvas.style.display = 'block';
+      }
+
+      // Set transition timeout to 3.0s as per PM specification
+      if (this.transitionTimeoutId !== null) {
+        window.clearTimeout(this.transitionTimeoutId);
+      }
+      this.transitionTimeoutId = window.setTimeout(() => {
+        this.transitionToRegister();
+      }, DEFAULT_SCREAMER_DURATION_MS);
+
+      this.startChromaLoop();
+    };
+    this.videoElement.addEventListener('play', this.boundVideoPlayHandler);
+
+    // Configure audio & source
+    this.videoElement.muted = false;
+    this.videoElement.volume = 1.0;
+    this.videoElement.src = JUMPSCARE_VIDEO_PATH;
+    this.videoElement.load();
+
+    const playPromise = this.videoElement.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        console.warn('[ScreamerView] Unmuted video autoplay prevented by browser. Trying muted fallback:', err);
+        // Fallback: if browser blocks unmuted autoplay, mute and play so visual still triggers
+        if (this.videoElement) {
+          this.videoElement.muted = true;
+          this.videoElement.play().catch(() => {});
+        }
+      });
+    }
+  }
+
+  /**
+   * Executes the real-time Chroma Key render loop on requestAnimationFrame.
+   * Strips the green screen background pixels by setting their alpha channel to 0.
+   */
+  startChromaLoop() {
+    const processFrame = () => {
+      if (!this.isVideoActive || !this.videoElement || this.videoElement.paused || this.videoElement.ended) {
+        return;
+      }
+
+      const video = this.videoElement;
+      const canvas = this.chromaCanvas;
+      const ctx = this.chromaCtx;
+
+      if (video.videoWidth > 0 && video.videoHeight > 0 && canvas && ctx) {
+        if (canvas.width !== video.videoWidth) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+        }
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        try {
+          const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = frame.data;
+          const len = data.length;
+
+          // Real-time green-screen thresholding & feathering
+          for (let i = 0; i < len; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+
+            // Primary chroma key: high green relative to red & blue
+            if (g > 85 && g > r * 1.25 && g > b * 1.25) {
+              data[i + 3] = 0; // Transparent
+            } else if (g > 70 && g > r * 1.1 && g > b * 1.1) {
+              // Edge spill softening & anti-aliasing
+              const diff = g - Math.max(r, b);
+              data[i + 3] = Math.max(0, 255 - diff * 3.5);
+            }
+          }
+
+          ctx.putImageData(frame, 0, 0);
+        } catch (error) {
+          console.warn('[ScreamerView] Canvas pixel manipulation exception:', error);
+          this.isVideoActive = false;
+          return;
+        }
+      }
+
+      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        this.animationFrameId = window.requestAnimationFrame(processFrame);
+      }
+    };
+
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      this.animationFrameId = window.requestAnimationFrame(processFrame);
+    }
   }
 
   /**
@@ -91,10 +279,30 @@ export class ScreamerView {
       return;
     }
     this.isTransitioning = true;
+    this.isVideoActive = false;
 
-    if (this.transitionTimeoutId !== null) {
+    if (this.animationFrameId !== null && typeof window !== 'undefined') {
+      window.cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+
+    if (this.transitionTimeoutId !== null && typeof window !== 'undefined') {
       window.clearTimeout(this.transitionTimeoutId);
       this.transitionTimeoutId = null;
+    }
+
+    if (this.videoElement) {
+      try {
+        this.videoElement.pause();
+      } catch {
+        // Safe ignore
+      }
+    }
+
+    // Clean up overlay host if mounted as overlay over active game
+    if (this.overlayHost && this.overlayHost.parentNode) {
+      this.overlayHost.parentNode.removeChild(this.overlayHost);
+      this.overlayHost = null;
     }
 
     // Update URL hash to trigger router transition to registerView
@@ -108,17 +316,48 @@ export class ScreamerView {
   }
 
   /**
-   * Unmounts the jumpscare view and cleans up timers, listeners, and references.
+   * Unmounts the jumpscare view and cleans up timers, listeners, video, and references.
    */
   unmount() {
-    if (this.transitionTimeoutId !== null) {
+    this.isVideoActive = false;
+
+    if (this.animationFrameId !== null && typeof window !== 'undefined') {
+      window.cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+
+    if (this.transitionTimeoutId !== null && typeof window !== 'undefined') {
       window.clearTimeout(this.transitionTimeoutId);
       this.transitionTimeoutId = null;
     }
 
-    if (this.boundKeyDownHandler) {
+    if (this.boundKeyDownHandler && typeof window !== 'undefined') {
       window.removeEventListener('keydown', this.boundKeyDownHandler);
       this.boundKeyDownHandler = null;
+    }
+
+    if (this.videoElement) {
+      if (this.boundVideoEndedHandler) {
+        this.videoElement.removeEventListener('ended', this.boundVideoEndedHandler);
+      }
+      if (this.boundVideoPlayHandler) {
+        this.videoElement.removeEventListener('play', this.boundVideoPlayHandler);
+      }
+      if (this.boundVideoErrorHandler) {
+        this.videoElement.removeEventListener('error', this.boundVideoErrorHandler);
+      }
+      try {
+        this.videoElement.pause();
+        this.videoElement.src = '';
+      } catch {
+        // Safe ignore
+      }
+      this.videoElement = null;
+    }
+
+    if (this.overlayHost && this.overlayHost.parentNode) {
+      this.overlayHost.parentNode.removeChild(this.overlayHost);
+      this.overlayHost = null;
     }
 
     if (this.container) {
@@ -131,12 +370,14 @@ export class ScreamerView {
       this.container = null;
     }
 
+    this.chromaCanvas = null;
+    this.chromaCtx = null;
     this.isTransitioning = false;
   }
 
   /**
-   * Generates the HTML template containing the horrific demonic pumpkin SVG,
-   * strobe overlay, CRT glitch scanlines, and screen-shake container.
+   * Generates the HTML template containing the video element, Chroma-Key canvas,
+   * horrific demonic pumpkin SVG fallback, and screen-shake container.
    *
    * @returns {string} Raw HTML string.
    */
@@ -146,13 +387,16 @@ export class ScreamerView {
         <!-- Hidden screen reader alert -->
         <h1 class="sr-only">Secuencia de terror en curso</h1>
 
-        <!-- Strobe flash overlay -->
-        <div class="screamer-view__strobe" aria-hidden="true"></div>
-
-        <!-- Violent jitter and screen-shake container -->
+        <!-- Screen-shake container -->
         <div class="screamer-view__shake" aria-hidden="true">
-          <!-- Gruesome Demonic Jack-o'-Lantern Monster SVG -->
-          <svg class="screamer-view__monster" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Criatura demoníaca de Halloween">
+          <!-- Off-screen raw video source with green chroma background -->
+          <video class="screamer-view__video" playsinline preload="auto" aria-hidden="true"></video>
+
+          <!-- Real-time Chroma-Key Output Canvas (transparent green screen) -->
+          <canvas class="screamer-view__chroma-canvas" id="screamer-chroma-canvas" aria-hidden="true"></canvas>
+
+          <!-- Fallback Gruesome Demonic Jack-o'-Lantern Monster SVG -->
+          <svg class="screamer-view__monster screamer-view__monster--hidden" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Criatura demoníaca de Halloween">
             <defs>
               <radialGradient id="monsterHeadGrad" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stop-color="#2a0008" />
@@ -194,9 +438,6 @@ export class ScreamerView {
           </svg>
         </div>
 
-        <!-- CRT Glitch scanlines and vignette -->
-        <div class="screamer-view__glitch" aria-hidden="true"></div>
-
         <!-- Discreet accessible skip trigger -->
         <button type="button" class="screamer-view__skip-btn" aria-label="Saltar animación de susto e ir al registro">
           Saltar [Esc]
@@ -212,4 +453,3 @@ export class ScreamerView {
 export const screamerView = new ScreamerView();
 
 export default screamerView;
-

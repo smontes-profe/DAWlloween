@@ -154,7 +154,7 @@ describe('GameView Unit Tests', () => {
     assert.equal(video.id, 'camera-stream-preview');
 
     assert.ok(view.timerDigits);
-    assert.equal(view.timerDigits.textContent, '00:60');
+    assert.equal(view.timerDigits.textContent, '00:05');
 
     assert.ok(view.ammoCylinder);
     const bullets = view.ammoCylinder.querySelectorAll('.hud-bullet');

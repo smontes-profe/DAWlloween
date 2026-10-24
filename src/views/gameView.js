@@ -8,9 +8,11 @@
 
 import { cameraService } from '../screamer/camera.js';
 import { captureService } from '../screamer/capture.js';
+import { recorderService } from '../screamer/recorder.js';
 import { eventBus } from '../utils/eventBus.js';
 import { GameEngine } from '../game/engine.js';
 import { audioService } from '../services/audio.js';
+import { screamerView } from './screamerView.js';
 
 /**
  * Game View component orchestrating the Canvas arena and HUD overlay.
@@ -111,7 +113,7 @@ export class GameView {
     timerContainer.className = 'hud-timer';
     timerContainer.setAttribute('role', 'timer');
     timerContainer.setAttribute('aria-live', 'polite');
-    timerContainer.setAttribute('aria-label', 'Survival Time Remaining: 00:60');
+    timerContainer.setAttribute('aria-label', 'Survival Time Remaining: 00:05');
 
     const timerIcon = document.createElement('span');
     timerIcon.className = 'hud-timer__icon';
@@ -120,7 +122,7 @@ export class GameView {
 
     const timerDigits = document.createElement('span');
     timerDigits.className = 'hud-timer__digits';
-    timerDigits.textContent = '00:60';
+    timerDigits.textContent = '00:05';
 
     timerContainer.appendChild(timerIcon);
     timerContainer.appendChild(timerDigits);
@@ -233,8 +235,8 @@ export class GameView {
       window.addEventListener('keydown', this.boundUserGesture, { once: true });
     }
 
-    // Initialise and boot Canvas 2D Game Engine
-    this.engine = new GameEngine({ canvas });
+    // Initialise and boot Canvas 2D Game Engine (5 seconds survival timer for agile testing)
+    this.engine = new GameEngine({ canvas, survivalDuration: 5 });
     this.engine.start();
 
     // Subscribe to EventBus updates
@@ -261,16 +263,21 @@ export class GameView {
         if (audioService && typeof audioService.stopAmbient === 'function') {
           audioService.stopAmbient();
         }
-        // Seamlessly coordinate immediate route transition to #screamer
-        if (typeof window !== 'undefined' && window.location) {
+        // Jump the screamer directly over the active game screen without halting the game engine
+        if (typeof document !== 'undefined' && document.body && screamerView && typeof screamerView.mountOverlay === 'function') {
+          screamerView.mountOverlay(document.body);
+        } else if (typeof window !== 'undefined' && window.location) {
           window.location.hash = '#screamer';
         }
       });
     }
 
-    // Initialise synchronous reaction webcam capture listener
+    // Initialise synchronous reaction webcam capture and video recording listeners
     if (captureService && typeof captureService.initialiseCaptureListener === 'function') {
       captureService.initialiseCaptureListener();
+    }
+    if (recorderService && typeof recorderService.initialiseRecorderListener === 'function') {
+      recorderService.initialiseRecorderListener();
     }
   }
 
@@ -449,6 +456,9 @@ export class GameView {
 
     if (captureService && typeof captureService.detachCaptureListener === 'function') {
       captureService.detachCaptureListener();
+    }
+    if (recorderService && typeof recorderService.detachRecorderListener === 'function') {
+      recorderService.detachRecorderListener();
     }
 
     if (this.boundUserGesture && typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {

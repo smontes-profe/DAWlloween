@@ -104,7 +104,6 @@ export class AudioManager {
       eventBus.subscribe('game:weapon-reloaded', () => this.playReloadComplete()),
       eventBus.subscribe('game:projectile-hit', () => this.playHit()),
       eventBus.subscribe('screamer:play-sound', () => this.playScreamer()),
-      eventBus.subscribe('game:trigger-screamer', () => this.playScreamer()),
       eventBus.subscribe('audio:toggle-mute', (data) => {
         if (data && typeof data.isMuted === 'boolean') {
           this.setMuted(data.isMuted);

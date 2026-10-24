@@ -672,7 +672,7 @@ describe('Progressive Wave Spawner & Enemy Combat Unit Tests (US1.6 / T16)', () 
 });
 
 describe('GameEngine Climax Trigger & Screamer Payload Unit Tests (US1.6 / T18)', () => {
-  it('should halt game loop, transition to TRIGGERED state, detach listeners, and emit game:trigger-screamer upon timer expiration', () => {
+  it('should emit game:trigger-screamer upon timer expiration, keep simulation active during exposure, and transition to TRIGGERED upon haltClimax', () => {
     const engine = new GameEngine({ survivalDuration: 1 });
     engine.state = GAME_STATES.RUNNING;
     engine.isSpawnerActive = false;
@@ -685,8 +685,10 @@ describe('GameEngine Climax Trigger & Screamer Payload Unit Tests (US1.6 / T18)'
     // Advance 1.2s -> timer reaches 0 and triggers climax
     engine.update(1.2);
 
-    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED);
+    assert.strictEqual(engine.isClimaxTriggered, true);
     assert.strictEqual(engine.remainingSeconds, 0);
+    // Simulation remains RUNNING during the scare grace period
+    assert.strictEqual(engine.state, GAME_STATES.RUNNING);
     assert.ok(screamerPayload !== null);
     assert.strictEqual(screamerPayload.reason, 'timer_expired');
     assert.strictEqual(screamerPayload.survivalDuration, 1);
@@ -694,10 +696,14 @@ describe('GameEngine Climax Trigger & Screamer Payload Unit Tests (US1.6 / T18)'
     assert.strictEqual(typeof screamerPayload.timestamp, 'number');
     assert.strictEqual(screamerPayload.enemiesDefeated, 0);
 
+    // Calling haltClimax transitions engine to TRIGGERED
+    engine.haltClimax();
+    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED);
+
     unsubscribe();
   });
 
-  it('should halt game loop, transition to TRIGGERED state, and emit game:trigger-screamer upon player defeat', () => {
+  it('should emit game:trigger-screamer upon player defeat and transition to TRIGGERED on haltClimax', () => {
     const engine = new GameEngine({ survivalDuration: 60 });
     engine.state = GAME_STATES.RUNNING;
     engine.isSpawnerActive = false;
@@ -719,23 +725,27 @@ describe('GameEngine Climax Trigger & Screamer Payload Unit Tests (US1.6 / T18)'
     // Update frame -> brute collides with player and deals fatal damage
     engine.update(0.016);
 
-    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED);
+    assert.strictEqual(engine.isClimaxTriggered, true);
     assert.strictEqual(engine.player.isAlive, false);
     assert.strictEqual(engine.player.health, 0);
     assert.ok(screamerPayload !== null);
     assert.strictEqual(screamerPayload.reason, 'player_defeat');
     assert.strictEqual(typeof screamerPayload.elapsedTime, 'number');
 
+    engine.haltClimax();
+    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED);
+
     unsubscribe();
   });
 
-  it('should not allow triggerClimax to execute multiple times once TRIGGERED', () => {
+  it('should not allow triggerClimax to execute multiple times once triggered', () => {
     const engine = new GameEngine();
     engine.state = GAME_STATES.RUNNING;
 
-    const payload1 = engine.triggerClimax('timer_expired');
+    const payload1 = engine.triggerClimax('timer_expired', 0);
     assert.ok(payload1 !== null);
     assert.strictEqual(engine.state, GAME_STATES.TRIGGERED);
+    assert.strictEqual(engine.isClimaxTriggered, true);
 
     const payload2 = engine.triggerClimax('player_defeat');
     assert.strictEqual(payload2, null);
