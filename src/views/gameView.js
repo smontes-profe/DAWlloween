@@ -7,6 +7,7 @@
  */
 
 import { cameraService } from '../screamer/camera.js';
+import { captureService } from '../screamer/capture.js';
 import { eventBus } from '../utils/eventBus.js';
 import { GameEngine } from '../game/engine.js';
 import { audioService } from '../services/audio.js';
@@ -262,6 +263,11 @@ export class GameView {
         }
       });
     }
+
+    // Initialise synchronous reaction webcam capture listener
+    if (captureService && typeof captureService.initialiseCaptureListener === 'function') {
+      captureService.initialiseCaptureListener();
+    }
   }
 
   /**
@@ -435,6 +441,10 @@ export class GameView {
     if (typeof this.unsubscribeScreamer === 'function') {
       this.unsubscribeScreamer();
       this.unsubscribeScreamer = null;
+    }
+
+    if (captureService && typeof captureService.detachCaptureListener === 'function') {
+      captureService.detachCaptureListener();
     }
 
     if (this.boundUserGesture && typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
