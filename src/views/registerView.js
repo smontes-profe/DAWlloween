@@ -10,6 +10,7 @@ import { captureService, generateFallbackAvatar } from '../screamer/capture.js';
 import { recorderService } from '../screamer/recorder.js';
 import { eventBus } from '../utils/eventBus.js';
 import { alerts } from '../ui/alerts.js';
+import { supabaseService } from '../services/supabase.js';
 
 /**
  * Validates and sanitises a player nickname string.
@@ -163,11 +164,13 @@ export class RegisterView {
   }
 
   /**
-   * Handles form validation, EventBus emission, and transition to #hall-of-fame.
+   * Handles form validation, cloud persistence upload/insert with retries, and transition to #hall-of-fame.
+   *
+   * @returns {Promise<Object|null>}
    */
-  handleSubmit() {
+  async handleSubmit() {
     if (!this.container) {
-      return;
+      return null;
     }
 
     const input = this.container.querySelector('#player-nickname');
@@ -175,7 +178,7 @@ export class RegisterView {
     const submitBtn = this.container.querySelector('#btn-immortalise');
 
     if (!input) {
-      return;
+      return null;
     }
 
     const validation = validateNickname(input.value);
@@ -188,27 +191,39 @@ export class RegisterView {
       if (typeof input.focus === 'function') {
         input.focus();
       }
-      return;
+      return null;
     }
 
-    // Input is valid: clear errors and disable button
+    // Input is valid: clear errors, disable inputs, and display loading state
     input.classList.remove('register-form__input--error');
     if (feedback) {
       feedback.textContent = '';
     }
     if (submitBtn) {
       submitBtn.disabled = true;
+      if (typeof submitBtn.setAttribute === 'function') {
+        submitBtn.setAttribute('aria-busy', 'true');
+      }
+      submitBtn.innerHTML = '<span>⏳ Enviando al más allá...</span>';
+    }
+    input.disabled = true;
+
+    // Display progress toast
+    if (alerts && typeof alerts.info === 'function') {
+      alerts.info('Enviando reacción al más allá...', 'Guardando Reacción', 3500);
     }
 
-    // Publish decoupled event payload for EPIC3 integration
+    // Extract in-memory media references
     const videoBlob = recorderService && typeof recorderService.getVideoBlob === 'function'
       ? recorderService.getVideoBlob()
       : null;
     const mimeType = videoBlob && recorderService
       ? (recorderService.recordedMimeType || 'video/webm')
-      : null;
+      : 'video/webm';
+    const photoDataUrl = this.snapshotDataUrl;
 
-    const payload = {
+    // Publish decoupled event immediately upon validation
+    const submissionPayload = {
       nickname: validation.sanitizedNickname,
       videoBlob,
       videoUrl: this.videoUrl,
@@ -218,16 +233,77 @@ export class RegisterView {
       hasVideo: Boolean(videoBlob),
       timestamp: Date.now()
     };
+    eventBus.publish('screamer:nickname-submitted', submissionPayload);
 
-    eventBus.publish('screamer:nickname-submitted', payload);
+    try {
+      let uploadedVideoUrl = null;
+      let uploadedPhotoUrl = null;
 
-    if (alerts && typeof alerts.success === 'function') {
-      alerts.success(`¡Reacción inmortalizada para "${validation.sanitizedNickname}"!`);
-    }
+      // 1. Upload video clip to Supabase Storage if available
+      if (videoBlob) {
+        const videoUpload = await supabaseService.uploadReactionMedia(videoBlob, {
+          mimeType,
+          useRetry: true
+        });
+        uploadedVideoUrl = videoUpload.publicUrl;
+      }
 
-    // Navigate to #hall-of-fame
-    if (typeof window !== 'undefined' && window.location) {
-      window.location.hash = '#hall-of-fame';
+      // 2. Upload photo snapshot (or fallback avatar) to Supabase Storage if available
+      if (photoDataUrl) {
+        const photoUpload = await supabaseService.uploadReactionMedia(photoDataUrl, {
+          mimeType: 'image/webp',
+          useRetry: true
+        });
+        uploadedPhotoUrl = photoUpload.publicUrl;
+      }
+
+      // 3. Persist entry in hall_of_fame database table
+      const persistedRecord = await supabaseService.insertReactionRecord({
+        nickname: validation.sanitizedNickname,
+        videoUrl: uploadedVideoUrl,
+        photoUrl: uploadedPhotoUrl
+      }, { useRetry: true });
+
+      // 4. Publish persisted event
+      eventBus.publish('screamer:persisted', {
+        ...submissionPayload,
+        id: persistedRecord?.id,
+        videoUrl: uploadedVideoUrl || this.videoUrl,
+        photoUrl: uploadedPhotoUrl
+      });
+
+      // 5. Display celebratory toast
+      if (alerts && typeof alerts.success === 'function') {
+        alerts.success(`¡Reacción inmortalizada para "${validation.sanitizedNickname}"!`, 'Hall of Fame', 4000);
+      }
+
+      // 6. Navigate to #hall-of-fame
+      if (typeof window !== 'undefined' && window.location) {
+        window.location.hash = '#hall-of-fame';
+      }
+
+      return persistedRecord;
+    } catch (err) {
+      console.error('[RegisterView] Cloud persistence failed:', err);
+
+      if (alerts && typeof alerts.error === 'function') {
+        alerts.error(
+          'No se pudo guardar tu reacción tras varios intentos. Comprueba tu conexión y vuelve a intentarlo.',
+          'Error de Envío',
+          5000
+        );
+      }
+
+      // Restore button and input state so player can retry
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        if (typeof submitBtn.removeAttribute === 'function') {
+          submitBtn.removeAttribute('aria-busy');
+        }
+        submitBtn.innerHTML = '<span>🏆 Inmortalizar en el Hall of Fame</span>';
+      }
+      input.disabled = false;
+      return null;
     }
   }
 

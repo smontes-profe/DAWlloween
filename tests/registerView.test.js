@@ -34,6 +34,19 @@ function createMockDom() {
         remove: (...c) => c.forEach((cls) => this.classList._classes.delete(cls)),
         contains: (cls) => this.classList._classes.has(cls)
       };
+      this.attributes = new Map();
+    }
+
+    setAttribute(key, value) {
+      this.attributes.set(key, String(value));
+    }
+
+    removeAttribute(key) {
+      this.attributes.delete(key);
+    }
+
+    getAttribute(key) {
+      return this.attributes.get(key) || null;
     }
 
     addEventListener(event, handler) {
@@ -282,7 +295,7 @@ describe('RegisterView Component Unit Tests (US2.3 / T5, T6)', () => {
     }
   });
 
-  it('should publish screamer:nickname-submitted, disable button, and navigate to #hall-of-fame on valid submit (US2.3 / T6)', () => {
+  it('should publish screamer:nickname-submitted, disable button, and navigate to #hall-of-fame on valid submit (US2.3 / T6)', async () => {
     const { mockWindow, container } = createMockDom();
     global.window = mockWindow;
 
@@ -292,7 +305,6 @@ describe('RegisterView Component Unit Tests (US2.3 / T5, T6)', () => {
     const input = container.querySelector('#player-nickname');
     const feedback = container.querySelector('#nickname-feedback');
     const submitBtn = container.querySelector('#btn-immortalise');
-    const form = container.querySelector('#register-nickname-form');
 
     let submittedPayload = null;
     const unsub = eventBus.subscribe('screamer:nickname-submitted', (payload) => {
@@ -301,7 +313,7 @@ describe('RegisterView Component Unit Tests (US2.3 / T5, T6)', () => {
 
     try {
       input.value = ' Fantasma2026 ';
-      form.dispatchEvent('submit', { preventDefault: () => {} });
+      await view.handleSubmit();
 
       assert.ok(submittedPayload !== null);
       assert.strictEqual(submittedPayload.nickname, 'Fantasma2026');

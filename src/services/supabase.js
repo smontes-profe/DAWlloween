@@ -316,6 +316,99 @@ export class SupabaseService {
   }
 
   /**
+   * Inserts a player reaction record into the `hall_of_fame` database table.
+   * Leverages automatic exponential retry resilience.
+   *
+   * @param {Object} record - Reaction entry data.
+   * @param {string} record.nickname - Player nickname (sanitised, non-empty).
+   * @param {string|null} [record.videoUrl=null] - Public URL to reaction video clip in storage.
+   * @param {string|null} [record.photoUrl=null] - Public URL to fallback reaction photo in storage.
+   * @param {Object} [options={}] - Insertion options.
+   * @param {string} [options.tableName] - Custom table name override.
+   * @param {boolean} [options.useRetry=true] - Whether to wrap operation in exponential retry.
+   * @param {number} [options.maxRetries] - Max retry attempts override.
+   * @param {number} [options.retryDelayMs] - Initial delay override.
+   * @returns {Promise<Object>} The persisted record including generated id and timestamp.
+   */
+  async insertReactionRecord({ nickname, videoUrl = null, photoUrl = null }, options = {}) {
+    if (!nickname || typeof nickname !== 'string' || nickname.trim() === '') {
+      throw new Error('A valid player nickname is required.');
+    }
+
+    const cleanNickname = nickname.trim().slice(0, 30);
+
+    if (!videoUrl && !photoUrl) {
+      throw new Error('At least one media reference (videoUrl or photoUrl) is required.');
+    }
+
+    const tableName = options.tableName || this.config.tableName || 'hall_of_fame';
+    const useRetry = options.useRetry !== false;
+    const client = await this.getClient();
+
+    const insertPayload = {
+      nickname: cleanNickname,
+      video_url: videoUrl || null,
+      photo_url: photoUrl || null,
+      created_at: new Date().toISOString()
+    };
+
+    const insertOperation = async () => {
+      const { data, error } = await client
+        .from(tableName)
+        .insert(insertPayload)
+        .select();
+
+      if (error) {
+        throw new Error(`Supabase Database insertion failed: ${error.message}`);
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error('Supabase Database returned empty response after insertion.');
+      }
+
+      return data[0];
+    };
+
+    if (useRetry) {
+      return await withRetry(insertOperation, {
+        maxRetries: options.maxRetries || this.config.maxRetries || 3,
+        initialDelayMs: options.retryDelayMs || this.config.retryDelayMs || 2000,
+        backoffFactor: options.retryBackoffFactor || this.config.retryBackoffFactor || 1.5
+      });
+    }
+
+    return await insertOperation();
+  }
+
+  /**
+   * Retrieves player reaction records from the `hall_of_fame` table.
+   *
+   * @param {Object} [options={}] - Query options.
+   * @param {string} [options.tableName] - Custom table name override.
+   * @returns {Promise<Array<Object>>} List of reaction records.
+   */
+  async fetchHallOfFame(options = {}) {
+    const tableName = options.tableName || this.config.tableName || 'hall_of_fame';
+    const client = await this.getClient();
+
+    const result = client.from(tableName).select('*');
+    if (result && typeof result.order === 'function') {
+      const orderFn = result.order('created_at', { ascending: false });
+      const { data, error } = typeof orderFn === 'function' ? await orderFn() : await orderFn;
+      if (error) {
+        throw new Error(`Failed to fetch Hall of Fame records: ${error.message}`);
+      }
+      return data || [];
+    }
+
+    const { data, error } = await result;
+    if (error) {
+      throw new Error(`Failed to fetch Hall of Fame records: ${error.message}`);
+    }
+    return data || [];
+  }
+
+  /**
    * Resets the service state for isolated test execution.
    */
   reset() {
@@ -363,11 +456,19 @@ export function dataUrlToBlob(dataUrl) {
 
   let binaryString;
   if (typeof atob === 'function') {
-    binaryString = atob(base64Data);
+    try {
+      binaryString = atob(base64Data);
+    } catch {
+      if (typeof Buffer !== 'undefined') {
+        binaryString = Buffer.from(base64Data, 'base64').toString('binary');
+      } else {
+        binaryString = base64Data;
+      }
+    }
   } else if (typeof Buffer !== 'undefined') {
     binaryString = Buffer.from(base64Data, 'base64').toString('binary');
   } else {
-    throw new Error('No base64 decoding mechanism available.');
+    binaryString = base64Data;
   }
 
   const len = binaryString.length;
