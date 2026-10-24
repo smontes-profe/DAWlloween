@@ -8,6 +8,7 @@
 
 import { SUPABASE_CONFIG, isSupabaseConfigured, isMockMode } from '../config.js';
 import { eventBus } from '../utils/eventBus.js';
+import { withRetry } from '../utils/retry.js';
 
 /**
  * Service status enumeration.
@@ -237,6 +238,84 @@ export class SupabaseService {
   }
 
   /**
+   * Uploads an in-memory reaction video Blob or photo snapshot to Supabase Storage.
+   * Leverages automatic exponential retry resilience.
+   *
+   * @param {Blob|string|Object} mediaData - Video/Photo Blob or base64 Data URL.
+   * @param {Object} [options={}] - Upload options.
+   * @param {string} [options.mimeType] - MIME type (e.g. 'video/webm', 'image/webp').
+   * @param {string} [options.filename] - Custom filename override.
+   * @param {string} [options.bucket] - Target storage bucket override.
+   * @param {boolean} [options.useRetry=true] - Whether to wrap in exponential retry.
+   * @returns {Promise<{ path: string, publicUrl: string, bucket: string }>}
+   */
+  async uploadReactionMedia(mediaData, options = {}) {
+    if (!mediaData) {
+      throw new Error('Media data (Blob or Data URL) is required for upload.');
+    }
+
+    const bucket = options.bucket || this.config.storageBucket || 'reactions';
+    const useRetry = options.useRetry !== false;
+
+    // Convert Data URL to in-memory Blob if needed
+    let uploadBlob = mediaData;
+    let inferredMime = options.mimeType;
+
+    if (typeof mediaData === 'string' && mediaData.startsWith('data:')) {
+      uploadBlob = dataUrlToBlob(mediaData);
+      if (!inferredMime) {
+        inferredMime = uploadBlob.type;
+      }
+    } else if (mediaData && mediaData.type && !inferredMime) {
+      inferredMime = mediaData.type;
+    }
+
+    // Determine extension from MIME type
+    let extension = 'webm';
+    if (inferredMime) {
+      if (inferredMime.includes('webp')) extension = 'webp';
+      else if (inferredMime.includes('jpeg') || inferredMime.includes('jpg')) extension = 'jpg';
+      else if (inferredMime.includes('mp4')) extension = 'mp4';
+      else if (inferredMime.includes('webm')) extension = 'webm';
+    }
+
+    const filename = options.filename || generateMediaFilename(extension);
+    const client = await this.getClient();
+
+    const uploadOperation = async () => {
+      const { data, error } = await client.storage
+        .from(bucket)
+        .upload(filename, uploadBlob, {
+          contentType: inferredMime || 'application/octet-stream',
+          upsert: false
+        });
+
+      if (error) {
+        throw new Error(`Supabase Storage upload failed: ${error.message}`);
+      }
+
+      const { data: urlData } = client.storage.from(bucket).getPublicUrl(data.path || filename);
+      const publicUrl = urlData?.publicUrl || '';
+
+      return {
+        path: data.path || filename,
+        publicUrl,
+        bucket
+      };
+    };
+
+    if (useRetry) {
+      return await withRetry(uploadOperation, {
+        maxRetries: this.config.maxRetries || 3,
+        initialDelayMs: this.config.retryDelayMs || 2000,
+        backoffFactor: this.config.retryBackoffFactor || 1.5
+      });
+    }
+
+    return await uploadOperation();
+  }
+
+  /**
    * Resets the service state for isolated test execution.
    */
   reset() {
@@ -247,6 +326,65 @@ export class SupabaseService {
     this.status = SERVICE_STATUS.UNINITIALISED;
     this._isMockInstance = false;
   }
+}
+
+/**
+ * Generates an collision-free media object key for storage.
+ *
+ * @param {string} [extension='webm'] - File extension.
+ * @returns {string} Unique file name.
+ */
+export function generateMediaFilename(extension = 'webm') {
+  const cleanExt = extension.replace(/^\.+/, '');
+  const timestamp = Date.now();
+  const randomSuffix = Math.random().toString(36).substring(2, 9);
+  return `reaction_${timestamp}_${randomSuffix}.${cleanExt}`;
+}
+
+/**
+ * Converts a base64 Data URL to an in-memory binary Blob strictly without local storage.
+ *
+ * @param {string} dataUrl - Data URL string.
+ * @returns {Blob|Object} In-memory binary representation.
+ */
+export function dataUrlToBlob(dataUrl) {
+  if (!dataUrl || typeof dataUrl !== 'string') {
+    throw new Error('Valid data URL string is required.');
+  }
+
+  const parts = dataUrl.split(',');
+  if (parts.length < 2) {
+    throw new Error('Invalid data URL format.');
+  }
+
+  const mimeMatch = parts[0].match(/:(.*?);/);
+  const mimeType = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+  const base64Data = parts[1];
+
+  let binaryString;
+  if (typeof atob === 'function') {
+    binaryString = atob(base64Data);
+  } else if (typeof Buffer !== 'undefined') {
+    binaryString = Buffer.from(base64Data, 'base64').toString('binary');
+  } else {
+    throw new Error('No base64 decoding mechanism available.');
+  }
+
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  if (typeof Blob !== 'undefined') {
+    return new Blob([bytes], { type: mimeType });
+  }
+
+  return {
+    size: bytes.length,
+    type: mimeType,
+    arrayBuffer: async () => bytes.buffer
+  };
 }
 
 /**

@@ -125,4 +125,32 @@ describe('SupabaseService Unit Tests (US3.1 / T1)', () => {
     assert.equal(service.status, SERVICE_STATUS.UNINITIALISED);
     assert.equal(service.client, null);
   });
+
+  it('should upload reaction media Blob via uploadReactionMedia and return publicUrl', async () => {
+    const service = new SupabaseService();
+    const mockBlob = { size: 2048, type: 'video/webm' };
+
+    const result = await service.uploadReactionMedia(mockBlob, {
+      filename: 'reaction_custom_123.webm',
+      useRetry: false
+    });
+
+    assert.equal(result.path, 'reaction_custom_123.webm');
+    assert.equal(result.bucket, 'reactions');
+    assert.ok(result.publicUrl.includes('/storage/v1/object/public/reactions/reaction_custom_123.webm'));
+  });
+
+  it('should convert base64 Data URL to in-memory Blob and upload successfully', async () => {
+    const service = new SupabaseService();
+    // 1x1 transparent PNG / WebP equivalent data URL
+    const dummyDataUrl = 'data:image/webp;base64,UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA=';
+
+    const result = await service.uploadReactionMedia(dummyDataUrl, {
+      filename: 'reaction_snap.webp',
+      useRetry: false
+    });
+
+    assert.equal(result.path, 'reaction_snap.webp');
+    assert.ok(result.publicUrl.endsWith('reaction_snap.webp'));
+  });
 });

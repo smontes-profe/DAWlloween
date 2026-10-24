@@ -53,11 +53,35 @@ export class AlertService {
 
     // Listen for decoupled alert requests dispatched through the Event Bus
     if (eventBus && typeof eventBus.subscribe === 'function') {
-      this.unsubscribeEventBus = eventBus.subscribe('ui:alert', (payload) => {
+      const unsubAlert = eventBus.subscribe('ui:alert', (payload) => {
         if (payload) {
           this.show(payload);
         }
       });
+
+      const unsubRetry = eventBus.subscribe('storage:retry', (payload) => {
+        if (payload) {
+          this.warning(
+            `Conexión inestable con el inframundo. Reintentando (${payload.attempt}/${payload.maxRetries})...`,
+            'Reintentando Conexión'
+          );
+        }
+      });
+
+      const unsubError = eventBus.subscribe('storage:error', (payload) => {
+        if (payload) {
+          this.error(
+            'No se pudo conectar con el más allá tras varios intentos. Comprueba la red.',
+            'Error de Envío'
+          );
+        }
+      });
+
+      this.unsubscribeEventBus = () => {
+        if (typeof unsubAlert === 'function') unsubAlert();
+        if (typeof unsubRetry === 'function') unsubRetry();
+        if (typeof unsubError === 'function') unsubError();
+      };
     }
   }
 
