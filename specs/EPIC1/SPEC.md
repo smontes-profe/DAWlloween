@@ -33,21 +33,22 @@ Construir los cimientos de la Single Page Application (SPA) de **DAWlloween** y 
 
 ### US1.3: Motor Canvas 2D, Movimiento y Arquitectura Extensible
 > **Como** jugador,  
-> **quiero** mover a mi personaje en una arena 2D con teclado (WASD / cursores),  
-> **para** esquivar el peligro en un entorno preparado para incorporar futuras mecánicas fácilmente.
+> **quiero** mover a mi personaje en una arena 2D exclusivamente con teclas WASD y orientar su punto de mira continuamente hacia el puntero del ratón,  
+> **para** esquivar el peligro con precisión y en un entorno preparado para incorporar futuras mecánicas fácilmente.
 - **Criterios de Aceptación**:
   - Bucle de juego a 60 FPS en HTML5 Canvas con límites de pantalla claros.
-  - Movimiento suave en 8 direcciones del personaje.
+  - Movimiento suave en 8 direcciones del personaje controlado estrictamente por teclas WASD (sin teclas de flechas).
+  - Orientación dinámica y continua del personaje hacia la posición del cursor del ratón en la arena de juego.
   - Arquitectura modular y extensible (patrón *Factory* para entidades, separación estricta de lógica de renderizado e input) que permita incorporar futuras características sin refactorizaciones complejas.
   - Todo el código, métodos y comentarios estrictamente en inglés británico (`en-GB`).
 
-### US1.4: Apuntado con Ratón, Disparo y Sistema de Recarga
+### US1.4: Disparo con Ratón y Sistema de Recarga
 > **Como** jugador,  
-> **quiero** apuntar hacia el cursor del ratón y disparar proyectiles con el botón izquierdo teniendo cadencia y un tiempo de recarga tras 6 tiros,  
+> **quiero** disparar proyectiles hacia el puntero del ratón con el botón izquierdo teniendo cadencia y un tiempo de recarga tras 6 tiros,  
 > **para** defenderme activamente y enfocar toda mi atención en el combate.
 - **Criterios de Aceptación**:
-  - El personaje orienta su punto de mira hacia la posición actual del cursor del ratón en la arena.
-  - Disparo con botón izquierdo (`mousedown` / `click`) con cadencia controlada (retardo mínimo entre proyectiles).
+  - Disparo reactivo con el botón izquierdo del ratón (`mousedown` / `click`) en la dirección hacia donde apunta el puntero.
+  - Cadencia de fuego controlada (retardo mínimo entre proyectiles consecutivos).
   - Cargador de 6 disparos: tras el sexto proyectil, se activa un estado de recarga (*reloading/cooldown* visible en pantalla, ej. 1.5–2 segundos) antes de poder volver a disparar.
   - Proyectiles balísticos con trayectoria recta y colisión contra criaturas enemigas.
 

@@ -8,6 +8,7 @@
 
 import { cameraService } from '../screamer/camera.js';
 import { eventBus } from '../utils/eventBus.js';
+import { GameEngine } from '../game/engine.js';
 
 /**
  * Game View component orchestrating the Canvas arena and HUD overlay.
@@ -21,6 +22,8 @@ export class GameView {
     this.rootElement = null;
     /** @type {HTMLCanvasElement|null} */
     this.canvas = null;
+    /** @type {GameEngine|null} */
+    this.engine = null;
     /** @type {HTMLVideoElement|null} */
     this.videoElement = null;
     /** @type {HTMLElement|null} */
@@ -185,6 +188,10 @@ export class GameView {
     this.ammoLabel = ammoLabel;
     this.audioToggleBtn = audioToggleBtn;
     this.retreatBtn = retreatBtn;
+
+    // Initialise and boot Canvas 2D Game Engine
+    this.engine = new GameEngine({ canvas });
+    this.engine.start();
   }
 
   /**
@@ -270,6 +277,15 @@ export class GameView {
   }
 
   /**
+   * Retrieve the active GameEngine instance.
+   *
+   * @returns {GameEngine|null}
+   */
+  getEngine() {
+    return this.engine;
+  }
+
+  /**
    * Retrieve the video element associated with the camera stream.
    *
    * @returns {HTMLVideoElement|null}
@@ -282,6 +298,11 @@ export class GameView {
    * Clean up event listeners and DOM elements upon view unmount.
    */
   unmount() {
+    if (this.engine) {
+      this.engine.destroy();
+      this.engine = null;
+    }
+
     if (this.audioToggleBtn && this.boundAudioToggle) {
       this.audioToggleBtn.removeEventListener('click', this.boundAudioToggle);
       this.boundAudioToggle = null;

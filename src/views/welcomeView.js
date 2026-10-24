@@ -89,7 +89,7 @@ export class WelcomeView {
     // Card 1: Controls
     const controlsCard = this.createBriefingCard(
       '🕹️ Movement & Aiming',
-      'Evade enemies with 8-directional WASD or Arrow Keys. Aim dynamically with your mouse cursor across the canvas arena.'
+      'Evade enemies with 8-directional WASD keys. Aim continuously with your mouse cursor across the canvas arena.'
     );
 
     // Card 2: Mechanics

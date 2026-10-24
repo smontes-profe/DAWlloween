@@ -15,8 +15,8 @@
 |:---:|---|:---:|:---:|---|
 | **1** | **US1.1: Sistema de Diseño Visual y Guía de Estilo Frontend** | High | None | Visual design specification (`docs/DESIGN_GUIDE.md`), Halloween palette tokens, typography, glow effects, micro-animations, and reusable UI components. |
 | **2** | **US1.2: Estructura SPA y Pantalla de Inicio / Permiso de Cámara** | High | US1.1 | Base SPA shell applying design tokens, `#home` view with activity overview, and webcam permission handshake. |
-| **3** | **US1.3: Motor Canvas 2D, Movimiento y Arquitectura Extensible** | High | US1.2 | 60 FPS Canvas engine, 8-directional player movement, arena boundary constraints, and extensible entity factory architecture. |
-| **4** | **US1.4: Apuntado con Ratón, Disparo y Sistema de Recarga** | High | US1.3 | Cursor orientation tracking, projectile fire cadence, 6-shot capacity, and reload cooldown mechanic. |
+| **3** | **US1.3: Motor Canvas 2D, Movimiento y Arquitectura Extensible** | High | US1.2 | 60 FPS Canvas engine, 8-directional WASD movement, continuous mouse cursor aiming, arena boundaries, and extensible entity factory architecture. |
+| **4** | **US1.4: Disparo con Ratón y Sistema de Recarga** | High | US1.3 | Left-click firing cadence, 6-shot capacity, ballistic trajectories, and reload cooldown mechanic. |
 | **5** | **US1.5: Música Ambiental y Efectos de Sonido (SFX)** | Medium | US1.2, US1.4 | Atmospheric audio manager, looping background Halloween track, shoot/reload/hit sound effects, and mute toggle. |
 | **6** | **US1.6: Generación de Enemigos, Temporizador y Disparador de Susto** | High | US1.3, US1.4 | Progressive enemy spawning, pursuit AI, collision detection, countdown HUD, and `game:trigger-screamer` event dispatching for EPIC2. |
 
