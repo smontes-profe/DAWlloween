@@ -26,6 +26,7 @@ function createMockDom() {
       this.value = '';
       this.placeholder = '';
       this.required = false;
+      this.disabled = false;
       this.autocomplete = '';
       this.htmlFor = '';
       this.href = '';
@@ -122,11 +123,11 @@ function createMockDom() {
       }
     }
 
-    dispatchEvent(event) {
+    async dispatchEvent(event) {
       const type = event.type;
       if (this.listeners.has(type)) {
         for (const fn of this.listeners.get(type)) {
-          fn(event);
+          await fn(event);
         }
       }
     }
@@ -183,9 +184,9 @@ function createMockDom() {
         if (idx !== -1) arr.splice(idx, 1);
       }
     },
-    dispatchEvent: (event) => {
+    dispatchEvent: async (event) => {
       if (docListeners.has(event.type)) {
-        for (const fn of docListeners.get(event.type)) fn(event);
+        for (const fn of docListeners.get(event.type)) await fn(event);
       }
     }
   };
@@ -657,6 +658,140 @@ describe('AdminAuthService & AdminView Unit Tests (US6.1 / T1)', () => {
 
       assert.equal(hallView.reactions.length, 1);
       assert.equal(hallView.reactions[0].id, 'event-del-2');
+
+      hallView.destroy();
+    });
+
+    it('should disable delete button with loading spinner, await Supabase delete, and reload list from cloud', async () => {
+      const { doc, win, container } = createMockDom();
+      globalThis.document = doc;
+      globalThis.window = win;
+
+      let databaseDeleted = false;
+      let loadCalled = false;
+      const initialReactions = [
+        { id: 'rec-sync-1', nickname: 'HauntedDev', video_url: 'h.webm', photo_url: null },
+        { id: 'rec-sync-2', nickname: 'SavedSoul', video_url: 's.webm', photo_url: null }
+      ];
+
+      const mockSupabase = {
+        fetchHallOfFame: async () => {
+          if (databaseDeleted) {
+            loadCalled = true;
+            return [{ id: 'rec-sync-2', nickname: 'SavedSoul', video_url: 's.webm', photo_url: null }];
+          }
+          return initialReactions;
+        },
+        deleteReactionRecord: async (id) => {
+          databaseDeleted = true;
+          return { id, storageDeleted: [], storageErrors: [] };
+        }
+      };
+
+      const mockAuth = {
+        isAuthenticated: () => true,
+        getUsername: () => 'admin'
+      };
+
+      let successMsg = null;
+      const mockAlerts = {
+        success: (msg) => { successMsg = msg; },
+        info: () => {},
+        error: () => {}
+      };
+
+      const hallView = new HallOfFameView({
+        supabaseService: mockSupabase,
+        authService: mockAuth,
+        alertsService: mockAlerts,
+        enablePolling: false
+      });
+
+      await hallView.mount(container);
+
+      // Create card elements for MockElement test environment
+      const card1 = doc.createElement('div');
+      card1.className = 'reaction-card';
+      card1.setAttribute('data-id', 'rec-sync-1');
+      const deleteBtn = doc.createElement('button');
+      deleteBtn.className = 'btn-reaction-delete';
+      deleteBtn.textContent = 'Eliminar';
+      card1.appendChild(deleteBtn);
+      container.appendChild(card1);
+
+      hallView.openDeleteConfirmationModal('rec-sync-1', 'HauntedDev', card1);
+
+      const confirmBtn = doc.body.querySelector('#modal-btn-confirm');
+      assert.ok(confirmBtn);
+
+      await confirmBtn.dispatchEvent({ type: 'click' });
+
+      assert.equal(databaseDeleted, true);
+      assert.equal(loadCalled, true);
+      assert.equal(hallView.reactions.length, 1);
+      assert.equal(hallView.reactions[0].id, 'rec-sync-2');
+      assert.match(successMsg, /Reacción eliminada permanentemente/i);
+
+      hallView.destroy();
+    });
+
+    it('should restore delete button and show error alert if Supabase deletion fails', async () => {
+      const { doc, win, container } = createMockDom();
+      globalThis.document = doc;
+      globalThis.window = win;
+
+      const mockSupabase = {
+        fetchHallOfFame: async () => [
+          { id: 'rec-fail-1', nickname: 'ImmortalZombie', video_url: 'z.webm', photo_url: null }
+        ],
+        deleteReactionRecord: async () => {
+          throw new Error('Supabase Database row deletion failed: 0 rows affected.');
+        }
+      };
+
+      const mockAuth = {
+        isAuthenticated: () => true,
+        getUsername: () => 'admin'
+      };
+
+      let errorAlert = null;
+      const mockAlerts = {
+        success: () => {},
+        info: () => {},
+        error: (msg) => { errorAlert = msg; }
+      };
+
+      const hallView = new HallOfFameView({
+        supabaseService: mockSupabase,
+        authService: mockAuth,
+        alertsService: mockAlerts,
+        enablePolling: false
+      });
+
+      await hallView.mount(container);
+
+      const card = doc.createElement('div');
+      card.className = 'reaction-card';
+      card.setAttribute('data-id', 'rec-fail-1');
+      const deleteBtn = doc.createElement('button');
+      deleteBtn.className = 'btn-reaction-delete';
+      deleteBtn.textContent = 'Eliminar';
+      card.appendChild(deleteBtn);
+      container.appendChild(card);
+
+      hallView.openDeleteConfirmationModal('rec-fail-1', 'ImmortalZombie', card);
+
+      const confirmBtn = doc.body.querySelector('#modal-btn-confirm');
+      assert.ok(confirmBtn);
+
+      await confirmBtn.dispatchEvent({ type: 'click' });
+
+      // Button should be re-enabled and restored
+      assert.equal(deleteBtn.disabled, false);
+      assert.match(deleteBtn.innerHTML, /Eliminar/);
+      assert.match(errorAlert, /No se pudo eliminar de la base de datos/i);
+      // Card remains in reactions
+      assert.equal(hallView.reactions.length, 1);
 
       hallView.destroy();
     });

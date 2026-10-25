@@ -170,5 +170,15 @@ describe('SupabaseService Admin & Moderation Deletion (US6.1 / T0)', () => {
       assert.equal(outcome.storageErrors.length, 1);
       assert.match(outcome.storageErrors[0].message, /Simulated cloud storage removal failure/);
     });
+
+    it('should throw an error when database row deletion affects 0 rows (e.g. RLS blocked or missing ID)', async () => {
+      const mockClient = new MockSupabaseClient();
+      const service = new SupabaseService({ client: mockClient });
+
+      await assert.rejects(
+        () => service.deleteReactionRecord('non-existent-id-999', {}, { useRetry: false }),
+        /0 rows affected for ID "non-existent-id-999"/
+      );
+    });
   });
 });

@@ -510,11 +510,27 @@
   backdrop-filter: blur(4px);
 }
 
-.btn-reaction-delete:hover {
+.btn-reaction-delete:hover:not(:disabled) {
   background-color: var(--colour-blood-red);
   color: #ffffff;
   box-shadow: 0 0 12px var(--colour-blood-glow);
   transform: scale(1.05);
+}
+
+.btn-reaction-delete:disabled,
+.btn-reaction-delete--loading {
+  opacity: 0.8;
+  cursor: not-allowed;
+  pointer-events: none;
+  background-color: rgba(180, 20, 30, 0.6);
+  border-color: rgba(230, 57, 70, 0.4);
+  transform: none;
+}
+
+.reaction-delete-spinner {
+  display: inline-block;
+  animation: spinReel 1s linear infinite;
+  margin-right: 4px;
 }
 
 .reaction-card--removing {

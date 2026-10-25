@@ -139,6 +139,9 @@ export class HallOfFameView {
     /** @type {Function|null} */
     this.eventBusUnsubscribe = null;
 
+    /** @type {Set<string>} */
+    this.deletingIds = new Set();
+
     /** @type {HTMLElement|null} */
     this.activeModal = null;
 
@@ -166,6 +169,10 @@ export class HallOfFameView {
     // Subscribe to reactive cloud record deletion events
     this.boundRecordDeletedHandler = (payload) => {
       if (payload && payload.id) {
+        // Skip if this instance is actively processing the deletion and reload flow
+        if (this.deletingIds && this.deletingIds.has(String(payload.id))) {
+          return;
+        }
         this.removeReactionFromDom(payload.id);
       }
     };
@@ -747,27 +754,53 @@ export class HallOfFameView {
     // Confirm deletion action
     if (confirmBtn) {
       confirmBtn.addEventListener('click', async () => {
-        confirmBtn.disabled = true;
-        confirmBtn.innerHTML = '<span class="btn-text">Eliminando...</span>';
+        // 1. Close modal immediately so the user can observe the reaction card in the live gallery
+        this.closeModal();
+
+        // 2. Identify target card and its delete button
+        const targetCard = cardElement || (this.container && this.container.querySelector(`.reaction-card[data-id="${id}"]`));
+        const deleteBtn = targetCard
+          ? (targetCard.querySelector('.btn-reaction-delete') || targetCard.querySelector('[data-action="delete"]'))
+          : null;
+
+        // 3. Mark as actively deleting, disable delete button and display loading spinner
+        this.deletingIds.add(String(id));
+        if (deleteBtn) {
+          deleteBtn.disabled = true;
+          deleteBtn.classList.add('btn-reaction-delete--loading');
+          deleteBtn.innerHTML = '<span class="reaction-delete-spinner" aria-hidden="true">⏳</span> <span>Eliminando...</span>';
+        }
 
         try {
+          // 4. Send deletion request to Supabase
           await this.service.deleteReactionRecord(id, {
             videoUrl: reaction?.video_url,
             photoUrl: reaction?.photo_url
           });
 
-          this.closeModal();
-          this.removeReactionFromDom(id, cardElement);
+          // 5. Reload list of elements directly from Supabase to guarantee cloud synchronisation
+          if (this.container) {
+            await this.loadReactions({ isManual: true });
+          } else {
+            this.removeReactionFromDom(id, cardElement);
+          }
+
           if (this.alerts && typeof this.alerts.success === 'function') {
             this.alerts.success('Reacción eliminada permanentemente.', 'Moderación', 3000);
           }
         } catch (err) {
           console.error('[HallOfFameView] Error deleting reaction record:', err);
-          confirmBtn.disabled = false;
-          confirmBtn.innerHTML = '<span class="btn-text">Reintentar Eliminación</span>';
-          if (this.alerts && typeof this.alerts.error === 'function') {
-            this.alerts.error('No se pudo eliminar la reacción. Comprueba la conexión.', 'Error de Moderación', 4000);
+          // Restore button state on error
+          if (deleteBtn) {
+            deleteBtn.disabled = false;
+            deleteBtn.classList.remove('btn-reaction-delete--loading');
+            deleteBtn.innerHTML = '<span aria-hidden="true">🗑️</span> <span>Eliminar</span>';
           }
+          if (this.alerts && typeof this.alerts.error === 'function') {
+            this.alerts.error('No se pudo eliminar de la base de datos. Comprueba las políticas RLS.', 'Error de Moderación', 5000);
+          }
+        } finally {
+          this.deletingIds.delete(String(id));
         }
       });
     }

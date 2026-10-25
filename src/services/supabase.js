@@ -108,15 +108,23 @@ export class MockSupabaseClient {
         }
       }),
       delete: () => ({
-        eq: async (column, value) => {
+        eq: (column, value) => {
           if (this._simulateDbFailure) {
-            return { data: null, error: new Error('Simulated database deletion failure.') };
+            const errRes = { data: null, error: new Error('Simulated database deletion failure.') };
+            return {
+              select: async () => errRes,
+              then: (resolve, reject) => Promise.resolve(errRes).then(resolve, reject)
+            };
           }
           const tableList = this.tableData.get(tableName) || [];
           const remaining = tableList.filter((row) => row[column] !== value);
           const deleted = tableList.filter((row) => row[column] === value);
           this.tableData.set(tableName, remaining);
-          return { data: deleted, error: null };
+          const result = { data: deleted, error: null };
+          return {
+            select: async () => result,
+            then: (resolve, reject) => Promise.resolve(result).then(resolve, reject)
+          };
         }
       })
     };
@@ -536,11 +544,17 @@ export class SupabaseService {
       const { data, error } = await client
         .from(tableName)
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .select();
 
       if (error) {
         throw new Error(`Supabase Database row deletion failed: ${error.message}`);
       }
+
+      if (!data || data.length === 0) {
+        throw new Error(`Supabase Database row deletion failed: 0 rows affected for ID "${id}". Ensure record exists and RLS DELETE policy is granted.`);
+      }
+
       return data;
     };
 
