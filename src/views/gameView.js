@@ -156,7 +156,7 @@ export class GameView {
     // Ammunition Box
     const ammoBox = document.createElement('div');
     ammoBox.className = 'hud-ammo';
-    ammoBox.setAttribute('aria-label', 'Ammunition status');
+    ammoBox.setAttribute('aria-label', 'Estado de munición');
 
     const ammoCylinder = document.createElement('div');
     ammoCylinder.className = 'hud-ammo__cylinder';
@@ -185,7 +185,7 @@ export class GameView {
     timerContainer.className = 'hud-timer';
     timerContainer.setAttribute('role', 'timer');
     timerContainer.setAttribute('aria-live', 'polite');
-    timerContainer.setAttribute('aria-label', 'Survival Time Remaining: 00:05');
+    timerContainer.setAttribute('aria-label', 'Tiempo de supervivencia restante: 00:05');
 
     const timerIcon = document.createElement('span');
     timerIcon.className = 'hud-timer__icon';
@@ -216,18 +216,18 @@ export class GameView {
     audioToggleBtn.setAttribute('aria-pressed', this.isMuted ? 'true' : 'false');
     audioToggleBtn.setAttribute(
       'aria-label',
-      this.isMuted ? 'Unmute audio (currently muted)' : 'Mute audio (currently active)'
+      this.isMuted ? 'Activar audio (silenciado)' : 'Silenciar audio (activo)'
     );
     const audioIcon = this.isMuted ? '🔇' : '🔊';
-    const audioLabel = this.isMuted ? 'Muted' : 'Audio';
+    const audioLabel = this.isMuted ? 'Silenciado' : 'Sonido';
     audioToggleBtn.innerHTML = `<span aria-hidden="true">${audioIcon}</span> <span class="hud-btn__text">${audioLabel}</span>`;
 
     const retreatBtn = document.createElement('button');
     retreatBtn.id = 'btn-retreat';
     retreatBtn.type = 'button';
     retreatBtn.className = 'hud-btn';
-    retreatBtn.setAttribute('aria-label', 'Exit to home');
-    retreatBtn.innerHTML = '<span aria-hidden="true">🚪</span> Retreat';
+    retreatBtn.setAttribute('aria-label', 'Salir al inicio');
+    retreatBtn.innerHTML = '<span aria-hidden="true">🚪</span> Salir';
 
     hudActions.appendChild(audioToggleBtn);
     hudActions.appendChild(retreatBtn);
@@ -358,7 +358,7 @@ export class GameView {
     this.timerDigits.textContent = formatted;
 
     if (this.timerContainer) {
-      this.timerContainer.setAttribute('aria-label', `Survival Time Remaining: ${formatted}`);
+      this.timerContainer.setAttribute('aria-label', `Tiempo de supervivencia restante: ${formatted}`);
 
       // Progressive visual tension styling:
       // Tier 3: Expired (0s): skull icon, crimson alert
@@ -435,7 +435,7 @@ export class GameView {
     });
 
     if (isReloading) {
-      this.ammoLabel.textContent = 'RELOADING...';
+      this.ammoLabel.textContent = 'RECARGANDO...';
       this.ammoLabel.classList.add('hud-ammo__label--reloading');
     } else {
       this.ammoLabel.textContent = `${currentRounds} / ${maxRounds}`;
@@ -474,7 +474,7 @@ export class GameView {
     this.audioToggleBtn.setAttribute('aria-pressed', this.isMuted ? 'true' : 'false');
     this.audioToggleBtn.setAttribute(
       'aria-label',
-      this.isMuted ? 'Unmute audio (currently muted)' : 'Mute audio (currently active)'
+      this.isMuted ? 'Activar audio (silenciado)' : 'Silenciar audio (activo)'
     );
 
     if (this.isMuted) {
@@ -484,7 +484,7 @@ export class GameView {
     }
 
     const icon = this.isMuted ? '🔇' : '🔊';
-    const label = this.isMuted ? 'Muted' : 'Audio';
+    const label = this.isMuted ? 'Silenciado' : 'Sonido';
     this.audioToggleBtn.innerHTML = `<span aria-hidden="true">${icon}</span> <span class="hud-btn__text">${label}</span>`;
   }
 

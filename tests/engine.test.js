@@ -703,7 +703,7 @@ describe('GameEngine Climax Trigger & Screamer Payload Unit Tests (US1.6 / T18)'
     unsubscribe();
   });
 
-  it('should emit game:trigger-screamer upon player defeat and transition to TRIGGERED on haltClimax', () => {
+  it('should emit game:trigger-screamer upon player defeat and transition to TRIGGERED immediately', () => {
     const engine = new GameEngine({ survivalDuration: 60 });
     engine.state = GAME_STATES.RUNNING;
     engine.isSpawnerActive = false;
@@ -728,12 +728,10 @@ describe('GameEngine Climax Trigger & Screamer Payload Unit Tests (US1.6 / T18)'
     assert.strictEqual(engine.isClimaxTriggered, true);
     assert.strictEqual(engine.player.isAlive, false);
     assert.strictEqual(engine.player.health, 0);
+    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED, 'Engine state should immediately be TRIGGERED on defeat');
     assert.ok(screamerPayload !== null);
     assert.strictEqual(screamerPayload.reason, 'player_defeat');
     assert.strictEqual(typeof screamerPayload.elapsedTime, 'number');
-
-    engine.haltClimax();
-    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED);
 
     unsubscribe();
   });

@@ -153,12 +153,42 @@ describe('GameView Unit Tests', () => {
     assert.ok(video);
     assert.equal(video.id, 'camera-stream-preview');
 
+    assert.ok(view.statsCluster, 'Stats cluster container should exist');
+    assert.equal(view.statsCluster.className, 'game-hud__stats');
+
+    assert.ok(view.healthBox, 'Health box container should exist in stats cluster');
+    assert.equal(view.healthLabel.textContent, '100%');
+
     assert.ok(view.timerDigits);
     assert.equal(view.timerDigits.textContent, '00:05');
+    assert.ok(view.timerContainer);
+    assert.ok(view.timerContainer.className.includes('hud-timer'));
 
     assert.ok(view.ammoCylinder);
     const bullets = view.ammoCylinder.querySelectorAll('.hud-bullet');
     assert.equal(bullets.length, 6);
+  });
+
+  it('should reactively update health meter display when health events are published (US5.2 / T0)', () => {
+    const view = new GameView();
+    view.mount(mockEnv.container);
+
+    // Initial state: 100%
+    assert.equal(view.healthLabel.textContent, '100%');
+    assert.equal(view.healthBarFill.style.width, '100%');
+
+    // Update to 45% (warning tier)
+    view.updateHealth(45, 100);
+    assert.equal(view.healthLabel.textContent, '45%');
+    assert.equal(view.healthBarFill.style.width, '45%');
+    assert.equal(view.healthBox.classList.contains('hud-health--warning'), true);
+    assert.equal(view.healthBox.classList.contains('hud-health--critical'), false);
+
+    // Update to 15% (critical tier) via EventBus
+    eventBus.publish('game:health-updated', { health: 15, maxHealth: 100 });
+    assert.equal(view.healthLabel.textContent, '15%');
+    assert.equal(view.healthBarFill.style.width, '15%');
+    assert.equal(view.healthBox.classList.contains('hud-health--critical'), true);
   });
 
   it('should format countdown timer with progressive visual tension tiers (normal, warning, urgent, expired)', () => {
@@ -221,7 +251,7 @@ describe('GameView Unit Tests', () => {
 
     // Reloading active
     view.updateAmmo(0, 6, true);
-    assert.equal(view.ammoLabel.textContent, 'RELOADING...');
+    assert.equal(view.ammoLabel.textContent, 'RECARGANDO...');
     assert.equal(view.ammoLabel.classList.contains('hud-ammo__label--reloading'), true);
   });
 
@@ -231,7 +261,7 @@ describe('GameView Unit Tests', () => {
 
     assert.ok(view.audioToggleBtn);
     assert.equal(view.audioToggleBtn.getAttribute('aria-pressed'), 'false');
-    assert.equal(view.audioToggleBtn.getAttribute('aria-label'), 'Mute audio (currently active)');
+    assert.equal(view.audioToggleBtn.getAttribute('aria-label'), 'Silenciar audio (activo)');
     assert.equal(view.audioToggleBtn.classList.contains('hud-btn--muted'), false);
 
     const audioEvents = [];
@@ -240,7 +270,7 @@ describe('GameView Unit Tests', () => {
     view.handleAudioToggle();
     assert.equal(view.isMuted, true);
     assert.equal(view.audioToggleBtn.getAttribute('aria-pressed'), 'true');
-    assert.equal(view.audioToggleBtn.getAttribute('aria-label'), 'Unmute audio (currently muted)');
+    assert.equal(view.audioToggleBtn.getAttribute('aria-label'), 'Activar audio (silenciado)');
     assert.equal(view.audioToggleBtn.classList.contains('hud-btn--muted'), true);
     assert.equal(audioEvents.length, 1);
     assert.deepEqual(audioEvents[0], { isMuted: true });
@@ -248,7 +278,7 @@ describe('GameView Unit Tests', () => {
     view.handleAudioToggle();
     assert.equal(view.isMuted, false);
     assert.equal(view.audioToggleBtn.getAttribute('aria-pressed'), 'false');
-    assert.equal(view.audioToggleBtn.getAttribute('aria-label'), 'Mute audio (currently active)');
+    assert.equal(view.audioToggleBtn.getAttribute('aria-label'), 'Silenciar audio (activo)');
     assert.equal(view.audioToggleBtn.classList.contains('hud-btn--muted'), false);
     assert.equal(audioEvents.length, 2);
     assert.deepEqual(audioEvents[1], { isMuted: false });

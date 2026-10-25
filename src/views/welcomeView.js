@@ -67,14 +67,14 @@ export class WelcomeView {
     subtitle.className = 'text-spectral';
     subtitle.style.fontSize = 'var(--font-size-h3)';
     subtitle.style.fontWeight = '600';
-    subtitle.textContent = 'A Nocturnal 2D Survival Arcade Challenge for Web Developers';
+    subtitle.textContent = 'Desafío arcade nocturno de supervivencia 2D para estudiantes de DAW';
 
     const leadSynopsis = document.createElement('p');
     leadSynopsis.className = 'text-muted';
     leadSynopsis.style.maxWidth = '780px';
     leadSynopsis.style.margin = '0 auto';
     leadSynopsis.textContent =
-      'Survive the spectral onslaught for 60 seconds inside the dark arena. Control your movement, manage your 6-round revolver, aim with precision, and keep your composure!';
+      'Sobrevive a la horda espectral durante 60 segundos en la oscura arena. ¡Controla tu movimiento, gestiona tu revólver de 6 disparos, apunta con precisión y mantén la calma!';
 
     heroPanel.appendChild(title);
     heroPanel.appendChild(subtitle);
@@ -90,20 +90,20 @@ export class WelcomeView {
 
     // Card 1: Controls
     const controlsCard = this.createBriefingCard(
-      '🕹️ Movement & Aiming',
-      'Evade enemies with 8-directional WASD keys. Aim continuously with your mouse cursor across the canvas arena.'
+      '🕹️ Movimiento y Puntería',
+      'Esquiva a los enemigos con las teclas WASD en 8 direcciones. Apunta continuamente con el cursor del ratón por la arena.'
     );
 
     // Card 2: Mechanics
     const combatCard = this.createBriefingCard(
-      '🔫 6-Round Cylinder',
-      'Left-click to discharge projectiles. Each shot depletes your cylinder. After 6 rounds, an automatic reload cooldown activates.'
+      '🔫 Tambor de 6 Disparos',
+      'Haz clic izquierdo para disparar proyectiles. Cada disparo consume una bala del tambor. Tras 6 disparos, se activa la recarga automática.'
     );
 
     // Card 3: Calibration
     const sensorCard = this.createBriefingCard(
-      '👁️ Sensor Calibration',
-      'Webcam calibration is required before entering to capture survivor reactions for the classroom Hall of Fame. No data is stored locally.'
+      '👁️ Calibración de Cámara',
+      'Se requiere calibrar la cámara web antes de entrar para registrar tu reacción en el Hall of Fame del aula. No se guardan datos localmente.'
     );
 
     briefingGrid.appendChild(controlsCard);
@@ -124,7 +124,7 @@ export class WelcomeView {
     startBtn.id = 'btn-start-game';
     startBtn.type = 'button';
     startBtn.className = 'btn-arcade';
-    startBtn.setAttribute('aria-label', 'Calibrate camera and begin game');
+    startBtn.setAttribute('aria-label', 'Calibrar cámara web y comenzar partida');
 
     const btnIcon = document.createElement('span');
     btnIcon.setAttribute('aria-hidden', 'true');
@@ -132,7 +132,7 @@ export class WelcomeView {
 
     const btnText = document.createElement('span');
     btnText.className = 'btn-arcade__text';
-    btnText.textContent = 'Calibrate & Enter the Arena';
+    btnText.textContent = 'Calibrar Cámara y Entrar';
 
     startBtn.appendChild(btnIcon);
     startBtn.appendChild(btnText);
@@ -141,7 +141,7 @@ export class WelcomeView {
     privacyDisclaimer.className = 'text-muted';
     privacyDisclaimer.style.fontSize = 'var(--font-size-small)';
     privacyDisclaimer.textContent =
-      'Privacy Note: Camera stream is processed in memory during the experience. Zero local persistence.';
+      'Nota de privacidad: La señal de la cámara se procesa exclusivamente en memoria durante la partida. Cero almacenamiento local.';
 
     ctaPanel.appendChild(startBtn);
     ctaPanel.appendChild(privacyDisclaimer);
@@ -202,7 +202,7 @@ export class WelcomeView {
 
     const textSpan = this.startButton.querySelector('.btn-arcade__text');
     if (textSpan) {
-      textSpan.textContent = 'Calibrating Sensor...';
+      textSpan.textContent = 'Calibrando sensor...';
     }
 
     try {
@@ -220,11 +220,11 @@ export class WelcomeView {
 
       if (result.success) {
         if (textSpan) {
-          textSpan.textContent = 'Sensor Calibrated! Entering...';
+          textSpan.textContent = '¡Sensor calibrado! Entrando...';
         }
 
         if (alerts && typeof alerts.success === 'function') {
-          alerts.success('Webcam calibrated successfully. Prepare to survive!', 'Ready', 2500);
+          alerts.success('Cámara web calibrada correctamente. ¡Prepárate para sobrevivir!', 'Listo', 2500);
         }
 
         // Seamless transition to the game arena
@@ -236,11 +236,11 @@ export class WelcomeView {
       }
 
       // Handshake denied or failed
-      this.resetButtonState('Calibrate & Enter the Arena');
+      this.resetButtonState('Calibrar Cámara y Entrar');
       return false;
     } catch (error) {
       console.error('[WelcomeView] Calibration error:', error);
-      this.resetButtonState('Calibrate & Enter the Arena');
+      this.resetButtonState('Calibrar Cámara y Entrar');
       return false;
     } finally {
       this.isCalibrating = false;

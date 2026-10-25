@@ -528,6 +528,14 @@ export class GameEngine {
   update(deltaTime) {
     if (this.state !== GAME_STATES.RUNNING) return;
 
+    // Check player vitality before processing timers, spawners, or movements
+    if (this.player && (!this.player.isAlive || this.player.health <= 0)) {
+      if (!this.isClimaxTriggered) {
+        this.triggerClimax('player_defeat', 0);
+      }
+      return;
+    }
+
     // 0. Advance total session elapsed time
     this.gameElapsedTime += deltaTime;
 
@@ -548,36 +556,38 @@ export class GameEngine {
     // 0.3. Progress progressive wave spawner
     this.updateSpawner(deltaTime);
 
-    // 0.3. Progress survival countdown timer
-    this.remainingSeconds = Math.max(0, this.survivalDuration - this.gameElapsedTime);
-    const currentFloorSecond = Math.ceil(this.remainingSeconds);
-    if (currentFloorSecond !== this.lastDispatchedSecond) {
-      this.lastDispatchedSecond = currentFloorSecond;
-      if (eventBus && typeof eventBus.publish === 'function') {
-        eventBus.publish('game:timer-tick', {
-          remainingSeconds: this.remainingSeconds,
-          totalSeconds: this.survivalDuration,
-          currentSecond: currentFloorSecond
-        });
-
-        if (this.remainingSeconds <= 0) {
-          eventBus.publish('game:timer-expired', {
-            survivalDuration: this.survivalDuration
+    // 0.3. Progress survival countdown timer (only if climax has not been triggered)
+    if (!this.isClimaxTriggered) {
+      this.remainingSeconds = Math.max(0, this.survivalDuration - this.gameElapsedTime);
+      const currentFloorSecond = Math.ceil(this.remainingSeconds);
+      if (currentFloorSecond !== this.lastDispatchedSecond) {
+        this.lastDispatchedSecond = currentFloorSecond;
+        if (eventBus && typeof eventBus.publish === 'function') {
+          eventBus.publish('game:timer-tick', {
+            remainingSeconds: this.remainingSeconds,
+            totalSeconds: this.survivalDuration,
+            currentSecond: currentFloorSecond
           });
+
+          if (this.remainingSeconds <= 0) {
+            eventBus.publish('game:timer-expired', {
+              survivalDuration: this.survivalDuration
+            });
+          }
         }
       }
-    }
 
-    // Climax Trigger: Timer expiration
-    if (this.remainingSeconds <= 0 && !this.isClimaxTriggered) {
-      this.triggerClimax('timer_expired');
+      // Climax Trigger: Timer expiration
+      if (this.remainingSeconds <= 0 && !this.isClimaxTriggered) {
+        this.triggerClimax('timer_expired');
+      }
     }
 
     // 1. Move player using exclusively WASD directional inputs and arena bounds
     const inputDirection = this.computeInputDirection();
     const arenaBounds = { width: this.width, height: this.height };
 
-    if (this.player && typeof this.player.move === 'function') {
+    if (this.player && this.player.isAlive && typeof this.player.move === 'function') {
       this.player.move(deltaTime, inputDirection, arenaBounds);
       // Ensure player maintains orientation towards mouse cursor
       this.player.lookAt(this.cursorX, this.cursorY);
@@ -633,7 +643,8 @@ export class GameEngine {
 
             // Climax Trigger: Player defeat
             if (playerDefeated && !this.isClimaxTriggered) {
-              this.triggerClimax('player_defeat');
+              this.triggerClimax('player_defeat', 0);
+              return;
             }
           }
         }
@@ -857,6 +868,12 @@ export class GameEngine {
 
     this.isClimaxTriggered = true;
 
+    // Enforce dead state on player if defeat triggered
+    if (reason === 'player_defeat' && this.player) {
+      this.player.isAlive = false;
+      this.player.health = 0;
+    }
+
     const payload = {
       reason,
       elapsedTime: Math.round(this.gameElapsedTime * 1000) / 1000,
@@ -869,8 +886,11 @@ export class GameEngine {
       eventBus.publish('game:trigger-screamer', payload);
     }
 
-    // Schedule game halt after delay (3 seconds) so the game continues running smoothly during the scare
-    if (haltDelayMs > 0) {
+    // For player defeat, halt immediately without delay so dead player state is frozen
+    const effectiveDelay = reason === 'player_defeat' ? 0 : haltDelayMs;
+
+    // Schedule game halt after delay (or immediately for player defeat)
+    if (effectiveDelay > 0) {
       const scheduleTimeout = typeof window !== 'undefined' && typeof window.setTimeout === 'function'
         ? window.setTimeout
         : (typeof setTimeout === 'function' ? setTimeout : null);
@@ -878,7 +898,7 @@ export class GameEngine {
       if (scheduleTimeout) {
         this.climaxHaltTimeoutId = scheduleTimeout(() => {
           this.haltClimax();
-        }, haltDelayMs);
+        }, effectiveDelay);
       }
     } else {
       this.haltClimax();

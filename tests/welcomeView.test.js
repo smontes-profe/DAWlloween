@@ -156,7 +156,7 @@ describe('WelcomeView Unit Tests', () => {
     const startBtn = wrapper.querySelector('#btn-start-game');
     assert.ok(startBtn);
     const textSpan = startBtn.querySelector('.btn-arcade__text');
-    assert.equal(textSpan.textContent, 'Calibrate & Enter the Arena');
+    assert.equal(textSpan.textContent, 'Calibrar Cámara y Entrar');
   });
 
   it('should initialise audio, request camera permission, and navigate to #play upon successful calibration', async () => {
@@ -202,7 +202,7 @@ describe('WelcomeView Unit Tests', () => {
     assert.notEqual(mockEnv.win.location.hash, '#play');
     assert.equal(view.startButton.disabled, false);
     const textSpan = view.startButton.querySelector('.btn-arcade__text');
-    assert.equal(textSpan.textContent, 'Calibrate & Enter the Arena');
+    assert.equal(textSpan.textContent, 'Calibrar Cámara y Entrar');
   });
 
   it('should cleanly unmount and remove elements from the container', () => {
