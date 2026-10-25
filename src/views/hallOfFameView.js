@@ -350,7 +350,7 @@ export class HallOfFameView {
     }
 
     const gridContainer = this.container.querySelector('#hall-grid-container');
-    if (gridContainer && !this.boundGridClickHandler) {
+    if (gridContainer && typeof gridContainer.addEventListener === 'function' && !this.boundGridClickHandler) {
       this.boundGridClickHandler = (event) => {
         const deleteBtn = event.target.closest('[data-action="delete"]');
         if (deleteBtn) {
@@ -868,7 +868,7 @@ export class HallOfFameView {
       }
 
       const gridContainer = this.container.querySelector('#hall-grid-container');
-      if (gridContainer && this.boundGridClickHandler) {
+      if (gridContainer && typeof gridContainer.removeEventListener === 'function' && this.boundGridClickHandler) {
         gridContainer.removeEventListener('click', this.boundGridClickHandler);
       }
 
