@@ -67,7 +67,7 @@ export class WelcomeView {
     subtitle.className = 'text-spectral';
     subtitle.style.fontSize = 'var(--font-size-h3)';
     subtitle.style.fontWeight = '600';
-    subtitle.textContent = 'Desafío arcade nocturno de supervivencia 2D para estudiantes de DAW';
+    subtitle.textContent = 'Desafío arcade nocturno de supervivencia 2D de DAW';
 
     const leadSynopsis = document.createElement('p');
     leadSynopsis.className = 'text-muted';
@@ -103,7 +103,7 @@ export class WelcomeView {
     // Card 3: Calibration
     const sensorCard = this.createBriefingCard(
       '👁️ Calibración de Cámara',
-      'Se requiere calibrar la cámara web antes de entrar para registrar tu reacción en el Hall of Fame del aula. No se guardan datos localmente.'
+      'Se requiere calibrar la cámara web antes de entrar para ayudarnos a mejorar la experiencia en el futuro.'
     );
 
     briefingGrid.appendChild(controlsCard);
