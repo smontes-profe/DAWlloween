@@ -19,7 +19,7 @@
 
 ### US5.1: Localización Completa al Castellano de España
 - [<] [T4] [US5.1] Localise all user-facing strings, dialogues, instructions, HUD labels, and buttons in `WelcomeView` (`src/views/welcomeView.js`), `GameView` (`src/views/gameView.js`), and `ScreamerView` (`src/views/screamerView.js`) into natural European Spanish (`es-ES`) with correct orthography and diacritics.
-- [-] [T5] [US5.1] Localise all user-facing strings, forms, placeholders, and buttons in `RegisterView` (`src/views/registerView.js`), `HallOfFameView` (`src/views/hallOfFameView.js`), and toast notifications in `AlertsService` (`src/ui/alerts.js`), plus update unit tests across `tests/welcomeView.test.js`, `tests/registerView.test.js`, and `tests/alerts.test.js`.
+- [<] [T5] [US5.1] Localise all user-facing strings, forms, placeholders, and buttons in `RegisterView` (`src/views/registerView.js`), `HallOfFameView` (`src/views/hallOfFameView.js`), and toast notifications in `AlertsService` (`src/ui/alerts.js`), plus update unit tests across `tests/welcomeView.test.js`, `tests/registerView.test.js`, and `tests/alerts.test.js`.
 
 ### US5.3: Optimización del Hall of Fame (2 Vídeos por Fila en Móvil & IntersectionObserver)
 - [ ] [T6] [US5.3] Update `styles/hallOfFame.css` mobile media queries (< 768px) to render reaction cards in a responsive 2-column grid (`repeat(2, 1fr)`) with compact padding, fluid typography, and proportional card aspect ratios.

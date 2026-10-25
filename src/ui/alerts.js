@@ -113,7 +113,7 @@ export class AlertService {
         element.id = 'toast-container';
         element.className = 'toast-container';
         element.setAttribute('role', 'region');
-        element.setAttribute('aria-label', 'System Notifications');
+        element.setAttribute('aria-label', 'Notificaciones del sistema');
         element.setAttribute('aria-live', 'polite');
         element.setAttribute('aria-atomic', 'false');
         document.body.appendChild(element);
@@ -193,7 +193,7 @@ export class AlertService {
       const closeButton = document.createElement('button');
       closeButton.type = 'button';
       closeButton.className = 'toast__close';
-      closeButton.setAttribute('aria-label', 'Dismiss notification');
+      closeButton.setAttribute('aria-label', 'Cerrar notificación');
       closeButton.innerHTML = '&times;';
       closeButton.addEventListener('click', () => {
         this.dismiss(toastElement);
@@ -226,7 +226,7 @@ export class AlertService {
    * @param {number} [duration=4000] - Duration in ms.
    * @returns {HTMLElement|null}
    */
-  info(message, title = 'Information', duration = 4000) {
+  info(message, title = 'Información', duration = 4000) {
     return this.show({ message, title, type: 'info', duration });
   }
 
@@ -234,11 +234,11 @@ export class AlertService {
    * Helper for success notifications.
    *
    * @param {string} message - Message text.
-   * @param {string} [title='Success'] - Optional title.
+   * @param {string} [title='Éxito'] - Optional title.
    * @param {number} [duration=4000] - Duration in ms.
    * @returns {HTMLElement|null}
    */
-  success(message, title = 'Success', duration = 4000) {
+  success(message, title = 'Éxito', duration = 4000) {
     return this.show({ message, title, type: 'success', duration });
   }
 
@@ -246,11 +246,11 @@ export class AlertService {
    * Helper for warning notifications.
    *
    * @param {string} message - Message text.
-   * @param {string} [title='Warning'] - Optional title.
+   * @param {string} [title='Aviso'] - Optional title.
    * @param {number} [duration=5000] - Duration in ms.
    * @returns {HTMLElement|null}
    */
-  warning(message, title = 'Warning', duration = 5000) {
+  warning(message, title = 'Aviso', duration = 5000) {
     return this.show({ message, title, type: 'warning', duration });
   }
 

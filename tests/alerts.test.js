@@ -123,7 +123,7 @@ describe('AlertService Unit Tests', () => {
     assert.ok(container);
     assert.equal(container.id, 'toast-container');
     assert.equal(container.getAttribute('role'), 'region');
-    assert.equal(container.getAttribute('aria-label'), 'System Notifications');
+    assert.equal(container.getAttribute('aria-label'), 'Notificaciones del sistema');
     assert.equal(container.getAttribute('aria-live'), 'polite');
   });
 
