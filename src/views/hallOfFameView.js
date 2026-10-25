@@ -137,6 +137,9 @@ export class HallOfFameView {
     this.setupVisibilityDetection();
 
     const initialRecords = await this.loadReactions();
+    if (!this.container) {
+      return initialRecords;
+    }
     this.startPolling();
     return initialRecords;
   }

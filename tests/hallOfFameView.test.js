@@ -134,7 +134,8 @@ describe('HallOfFameView Component Unit Tests (US4.1 / T2)', () => {
   it('should initialise and generate initial template with skeletons upon mounting', () => {
     const view = new HallOfFameView({
       supabaseService: mockSupabase,
-      alertsService: mockAlerts
+      alertsService: mockAlerts,
+      enablePolling: false
     });
 
     view.mount(mockContainer);
@@ -143,12 +144,14 @@ describe('HallOfFameView Component Unit Tests (US4.1 / T2)', () => {
     assert.ok(mockContainer.innerHTML.includes('hall-grid'));
     assert.ok(mockContainer.innerHTML.includes('reaction-skeleton'));
     assert.ok(mockContainer.innerHTML.includes('btn-fab-refresh'));
+    view.destroy();
   });
 
   it('should fetch and render reaction cards accurately for videos and photos', async () => {
     const view = new HallOfFameView({
       supabaseService: mockSupabase,
-      alertsService: mockAlerts
+      alertsService: mockAlerts,
+      enablePolling: false
     });
 
     await view.mount(mockContainer);
@@ -164,6 +167,7 @@ describe('HallOfFameView Component Unit Tests (US4.1 / T2)', () => {
 
     const badge = mockContainer.querySelector('#hall-count-badge');
     assert.equal(badge.textContent, '2 Almas Inmortalizadas');
+    view.destroy();
   });
 
   it('should render empty state when no reaction records exist in cloud storage', async () => {
@@ -173,7 +177,8 @@ describe('HallOfFameView Component Unit Tests (US4.1 / T2)', () => {
 
     const view = new HallOfFameView({
       supabaseService: emptySupabase,
-      alertsService: mockAlerts
+      alertsService: mockAlerts,
+      enablePolling: false
     });
 
     await view.mount(mockContainer);
@@ -185,6 +190,7 @@ describe('HallOfFameView Component Unit Tests (US4.1 / T2)', () => {
 
     const badge = mockContainer.querySelector('#hall-count-badge');
     assert.equal(badge.textContent, '0 Almas Inmortalizadas');
+    view.destroy();
   });
 
   it('should display error layout and emit alert toast when cloud fetch fails', async () => {
@@ -196,7 +202,8 @@ describe('HallOfFameView Component Unit Tests (US4.1 / T2)', () => {
 
     const view = new HallOfFameView({
       supabaseService: failingSupabase,
-      alertsService: mockAlerts
+      alertsService: mockAlerts,
+      enablePolling: false
     });
 
     await view.mount(mockContainer);
@@ -205,6 +212,7 @@ describe('HallOfFameView Component Unit Tests (US4.1 / T2)', () => {
     assert.ok(grid.innerHTML.includes('Interrupción de Comunicación'));
     assert.equal(mockAlerts.errorCalls.length, 1);
     assert.equal(mockAlerts.errorCalls[0].title, 'Error de Conexión');
+    view.destroy();
   });
 
   it('should integrate seamlessly with appRouter to mount HallOfFameView on #hall-of-fame', async () => {
@@ -236,7 +244,8 @@ describe('HallOfFameView Component Unit Tests (US4.1 / T2)', () => {
 
     const view = new HallOfFameView({
       supabaseService: trackingSupabase,
-      alertsService: mockAlerts
+      alertsService: mockAlerts,
+      enablePolling: false
     });
 
     await view.mount(mockContainer);
@@ -249,6 +258,7 @@ describe('HallOfFameView Component Unit Tests (US4.1 / T2)', () => {
     const grid = mockContainer.querySelector('#hall-grid-container');
     assert.ok(grid.innerHTML.includes('RefreshedPlayer_2'));
     assert.ok(mockAlerts.infoCalls.some((c) => c.msg.includes('Mural de reacciones actualizado')));
+    view.destroy();
   });
 
   it('should preserve existing cards on screen if manual refresh encounters an error', async () => {
@@ -265,7 +275,8 @@ describe('HallOfFameView Component Unit Tests (US4.1 / T2)', () => {
 
     const view = new HallOfFameView({
       supabaseService: intermittentSupabase,
-      alertsService: mockAlerts
+      alertsService: mockAlerts,
+      enablePolling: false
     });
 
     await view.mount(mockContainer);
@@ -276,15 +287,17 @@ describe('HallOfFameView Component Unit Tests (US4.1 / T2)', () => {
     await view.refreshWithSpin();
     assert.ok(grid.innerHTML.includes('SurvivorOne'));
     assert.equal(mockAlerts.errorCalls.length, 1);
+    view.destroy();
   });
 
-  it('should clean up timers and references upon destroy()', () => {
+  it('should clean up timers and references upon destroy()', async () => {
     const view = new HallOfFameView({
       supabaseService: mockSupabase,
-      alertsService: mockAlerts
+      alertsService: mockAlerts,
+      enablePolling: false
     });
 
-    view.mount(mockContainer);
+    await view.mount(mockContainer);
     view.pollTimer = 999;
     view.destroy();
 

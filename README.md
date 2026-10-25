@@ -4,50 +4,46 @@
 [![HTML5 Canvas](https://img.shields.io/badge/HTML5-Canvas%202D-E34F26?logo=html5&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
 [![Vanilla CSS](https://img.shields.io/badge/CSS3-Modern%20Responsive-1572B6?logo=css3&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/CSS)
 [![Supabase](https://img.shields.io/badge/Backend-Supabase%20Free%20Tier-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
-[![Methodology](https://img.shields.io/badge/Methodology-Spec--Driven%20Agile-purple)](#methodology--sdd)
+[![CI/CD](https://img.shields.io/badge/Deployment-GitHub%20Pages%20via%20Actions-blue?logo=githubactions&logoColor=white)](https://github.com/)
+[![Methodology](https://img.shields.io/badge/Methodology-Spec--Driven%20Agile-purple)](#-methodology--sdd)
 
-An interactive, spine-chilling Halloween Single Page Application (SPA) designed as an attraction for vocational training students (*DAW - Desarrollo de Aplicaciones Web*) at **Ilerna Sevilla**.
+An interactive, spine-chilling Halloween Single Page Application (SPA) designed as an educational attraction and live showcase for vocational training students (*DAW - Desarrollo de Aplicaciones Web*) at **Ilerna Sevilla**.
 
 ---
 
 ## 👻 Project Overview
 
-DAWlloween serves as an interactive showcase of modern web application development capabilities for students from other educational programmes during Halloween festivities. 
+DAWlloween demonstrates modern client-side web development techniques without framework bloat, serving as a live attraction for visitors during Halloween festivities.
 
-The experience follows a 4-phase user journey:
-1. **The Decoy Game**: A minimalist browser survival game inspired by *Vampire Survivors*, built with HTML5 Canvas 2D. The gameplay aims to keep players focused for 30–60 seconds.
-2. **The Jumpscare & Reaction Capture**: An unexpected audiovisual scare synchronised with an instantaneous webcam snapshot capturing the player's terrified reaction.
-3. **Cloud Persistence with Retry Resilience**: The compressed reaction photo (WebP) and player nickname are sent directly to **Supabase** (Storage + PostgreSQL Database). No local storage is used; connection microcuts trigger automated retries and visual alerts.
-4. **The Hall of Fame**: A dark-themed, responsive photo mosaic gallery where visitors can review all captured reactions in real-time in the classroom or remotely from their mobile devices.
+The user journey consists of 4 distinct phases:
+1. **The Decoy Game (`#play`)**: An arcade survival mini-game inspired by *Vampire Survivors*, crafted in Vanilla HTML5 Canvas 2D. Players survive against supernatural foes (ghosts, zombies, pumpkin brutes) for 30–60 seconds.
+2. **The Jumpscare & Reaction Capture (`#screamer`)**: A synchronised audiovisual scare triggered at the climax, capturing the player's terrified reaction via background webcam streaming (WebM video clip with WebP photo fallback).
+3. **Cloud Persistence with Retry Resilience (`#register`)**: Player nicknames and media reactions are uploaded directly to **Supabase** (Object Storage + PostgreSQL Database) with exponential backoff retries and non-blocking toast alerts.
+4. **The Hall of Fame (`#hall-of-fame`)**: A dark gothic, fluid reaction wall designed for classroom projectors (1080p/1440p) and mobile devices (320px+), featuring looping reaction cards, floating refresh actions, and background polling synchronisation.
 
 ---
 
-## 🛠️ Technology Stack
+## 🛠️ Technology Stack & Pedagogical Constraints
 
-- **Frontend Core**: Vanilla JavaScript (ES Modules), HTML5 Canvas 2D, Vanilla CSS (CSS Grid, Flexbox, CSS Variables). No heavy frontend frameworks to maintain simplicity and educational clarity.
+- **Core Frontend**: Vanilla JavaScript (**ES Modules**), HTML5 Canvas 2D, and Modern Vanilla CSS (CSS Grid, Flexbox, Custom Properties, `clamp()`).
+- **No Heavy Frameworks**: No React, Vue, Bootstrap, or TailwindCSS. Clean, accessible code written as a teaching model.
 - **Backend as a Service (BaaS)**: **Supabase** (PostgreSQL Database & Object Storage with Row Level Security).
-- **Deployment & Hosting**: Static cloud hosting (**Vercel** / **GitHub Pages**) with mandatory HTTPS for secure camera stream permissions (`navigator.mediaDevices.getUserMedia`).
-- **Resilience**: Zero local persistence policy. Autonomous periodic retries with user-friendly toast notifications upon network interruptions.
+- **Deployment & Hosting**: Static hosting via **GitHub Pages** using **GitHub Actions CI/CD**.
+- **Zero Local Persistence**: No `localStorage` or `sessionStorage` for user reaction media.
+- **UK English (`en-GB`)**: All codebase identifiers, functions, comments, docstrings, and commits follow British English standards (`initialise`, `colour`, `synchronise`, `optimise`).
 
 ---
 
-## 📐 Pedagogical Design Patterns & Coding Standards
+## 📐 Software Design Patterns
 
-This project is tailored as an exemplary educational reference for 1st and 2nd year DAW students, strictly adhering to clean code principles:
+The architecture serves as an exemplary educational reference for 1st and 2nd year DAW students:
 
-- **State Pattern**: Orchestrates SPA transitions (`#home`, `#play`, `#screamer`, `#register`, `#hall-of-fame`) and game state.
-- **Observer / Event Bus (Pub-Sub)**: Decouples communication between game events, jumpscare triggers, webcam capture, and UI notification toasts.
-- **Module / Singleton Pattern**: Encapsulates external services (`supabase.js`, `camera.js`, `alerts.js`).
-- **Factory Pattern**: Dynamically spawns game entities (player, supernatural foes).
-- **UK English (`en-GB`)**: All variables, functions, constants, comments, and identifiers are strictly written in UK English.
-
----
-
-## 📱 Accessibility & Responsive Design
-
-- **Desktop-Optimised Gaming**: The gameplay and jumpscare experience are tuned for desktop displays (1080p, 720p, laptop monitors) equipped with webcams.
-- **Mobile-Ready Hall of Fame**: The *Hall of Fame* is fully responsive for smartphones and tablets, allowing students to browse their souvenirs comfortably from home.
-- **Accessibility (a11y)**: High-contrast Halloween colour scheme, accessible semantic markup, clear visual focus indicators, and keyboard navigation support.
+| Pattern | Implementation | Purpose |
+| :--- | :--- | :--- |
+| **State Pattern** | `src/app.js` (`Router`) | Manages SPA view transitions and lifecycle hooks (`mount` / `unmount` / `destroy`). |
+| **Observer / Pub-Sub** | `src/utils/eventBus.js` | Decouples game events, jumpscare triggers, webcam frames, and UI alerts. |
+| **Singleton / Module** | `src/services/supabase.js`, `src/ui/alerts.js` | Provides centralised, isolated services throughout the application. |
+| **Factory Pattern** | `src/game/entities.js` (`EntityFactory`) | Spawns polymorphic game entities (Player, Projectiles, Ghosts, Zombies, Brutes). |
 
 ---
 
@@ -55,61 +51,188 @@ This project is tailored as an exemplary educational reference for 1st and 2nd y
 
 ```text
 DAWlloween/
-├── docs/                      # Architectural specifications & project roadmap
+├── .github/
+│   └── workflows/
+│       └── deploy.yml         # CI/CD pipeline (Tests + Secrets Injection + GitHub Pages)
+├── assets/                    # Static media (sound effects, ambient music, jumpscare clips)
+│   ├── audio/
+│   └── screamer/
+├── docs/                      # Architectural contracts and SDD roadmap
 │   ├── ARCHITECTURE.md
 │   ├── ROADMAP.md
 │   └── GLOSSARY.md
 ├── specs/                     # Spec-Driven Development epics and task backlogs
 │   ├── SPECS.md
-│   └── EPIC0/
-├── public/                    # Static assets (jumpscare media, audio, sprites)
-│   └── assets/
-│       ├── screams/
-│       └── sprites/
+│   ├── EPIC1/
+│   ├── EPIC2/
+│   ├── EPIC3/
+│   └── EPIC4/
 ├── src/                       # Application source code (ES Modules)
-│   ├── app.js                 # SPA router and main orchestrator
-│   ├── config.js              # Environment settings and Supabase configuration
-│   ├── game/                  # Canvas 2D game loop and entities
-│   ├── screamer/              # Webcam stream capture & jumpscare coordination
-│   ├── services/              # Supabase client and network retry services
-│   ├── ui/                    # Shared visual notifications (alerts/toasts)
-│   └── views/                 # SPA view renderers
-├── styles/                    # Vanilla CSS stylesheets
-└── index.html                 # Main entry point
+│   ├── app.js                 # SPA router and orchestrator
+│   ├── config.js              # Centralised configuration & diagnostics
+│   ├── env.example.js         # Environment template for credentials
+│   ├── game/                  # 2D Canvas engine, physics, weapons & entities
+│   ├── screamer/              # MediaRecorder, webcam streams & audio triggers
+│   ├── services/              # Supabase API client and resilience retry logic
+│   ├── ui/                    # Accessible Halloween toast notifications
+│   ├── utils/                 # EventBus and helper utilities
+│   └── views/                 # View components (Welcome, Game, Screamer, Register, HallOfFame)
+├── styles/                    # Modern Vanilla CSS design system
+│   ├── main.css               # Design tokens, gothic typography & layout
+│   ├── game.css               # HUD, canvas container & arcade styles
+│   ├── screamer.css           # Jumpscare animations & flash effects
+│   ├── register.css           # Preview card & nickname form
+│   ├── alerts.css             # Floating toast alerts
+│   └── hallOfFame.css         # Responsive fluid grid & reaction cards
+├── tests/                     # Comprehensive native test suite (node:test)
+├── index.html                 # Main application entry point
+└── README.md                  # Project documentation & student deployment guide
 ```
 
 ---
 
-## 🚀 Getting Started
+## 💻 Local Development Setup (MAMP / Local Server)
 
-### Prerequisites
-A modern web browser supporting ES Modules and the WebRTC MediaDevices API (Google Chrome, Firefox, Microsoft Edge, Safari).
+Because the WebRTC Camera API (`navigator.mediaDevices.getUserMedia`) strictly requires a **Secure Context** (HTTPS or `localhost`), DAW students should run the application on a local server.
 
-### Local Execution
-Because webcam access requires a secure context (HTTPS or `localhost`), run a local web server:
+### Option 1: Running in MAMP (Recommended for DAW Students)
 
-Using any local HTTP server (such as Live Server in VS Code, Vite, Python, or MAMP):
+1. Clone or copy the `DAWlloween` folder into your MAMP `htdocs` directory:
+   - **Windows**: `C:\MAMP\htdocs\DAWlloween`
+   - **macOS**: `/Applications/MAMP/htdocs/DAWlloween`
+2. Start the **MAMP** servers (Apache).
+3. Configure your local environment variables:
+   - Copy `src/env.example.js` to `src/env.local.js`:
+     ```bash
+     cp src/env.example.js src/env.local.js
+     ```
+   - Open `src/env.local.js` and enter your Supabase URL and Anon Key:
+     ```javascript
+     window.__ENV__ = {
+       SUPABASE_URL: 'https://your-project-id.supabase.co',
+       SUPABASE_ANON_KEY: 'your-anon-key'
+     };
+     ```
+   *(Note: `src/env.local.js` is automatically ignored by `.gitignore` to prevent leaking credentials).*
+4. Open your browser and navigate to:
+   - Default MAMP Apache port: `http://localhost/DAWlloween/` (or `http://localhost:8888/DAWlloween/` depending on your MAMP port configuration).
+5. If Supabase credentials are left with placeholders, the app automatically activates **Diagnostic Mock Mode**, allowing full offline testing of the game, jumpscare, and mocked storage!
+
+### Option 2: Running with Node.js / Python
+
 ```bash
-# Example using npx serve or python
-npx serve .
-# or
+# Using Python 3 built-in server:
 python -m http.server 8000
+
+# Or using npx serve:
+npx serve .
 ```
-Then navigate to `http://localhost:8000`.
+Navigate to `http://localhost:8000`.
+
+---
+
+## 🧪 Running Automated Unit Tests
+
+DAWlloween utilises Node.js's native test runner (`node:test` and `node:assert/strict`). **No external test packages (such as Jest or Mocha) are required!**
+
+Run the complete test suite (36 test suites, 230+ tests):
+```bash
+node --test tests/*.test.js
+```
+
+Run a specific test suite:
+```bash
+# Test the 2D Game Engine:
+node --test tests/engine.test.js
+
+# Test Supabase Cloud Resilience:
+node --test tests/persistenceIntegration.test.js
+
+# Test Hall of Fame Responsive View:
+node --test tests/hallOfFameView.test.js
+
+# Test CI/CD Deployment Workflow:
+node --test tests/ciWorkflow.test.js
+```
+
+---
+
+## ☁️ Supabase Cloud Configuration
+
+To enable real cloud persistence for classroom presentations:
+
+1. Create a free account at [supabase.com](https://supabase.com) and create a new project.
+2. In the **Storage** section, create a public bucket named `reactions`:
+   - Bucket name: `reactions`
+   - Public bucket: **Enabled**
+3. In the **SQL Editor**, run the following schema migration to create the table and policies:
+
+```sql
+-- 1. Create table for reactions
+CREATE TABLE IF NOT EXISTS public.hall_of_fame (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  nickname VARCHAR(20) NOT NULL,
+  photo_url TEXT,
+  video_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- 2. Enable Row Level Security (RLS)
+ALTER TABLE public.hall_of_fame ENABLE ROW LEVEL SECURITY;
+
+-- 3. Allow anonymous reads for the Hall of Fame wall
+CREATE POLICY "Public read access for Hall of Fame"
+  ON public.hall_of_fame FOR SELECT
+  TO anon
+  USING (true);
+
+-- 4. Allow anonymous inserts for game registrations
+CREATE POLICY "Public insert access for Hall of Fame"
+  ON public.hall_of_fame FOR INSERT
+  TO anon
+  WITH CHECK (true);
+```
+
+---
+
+## 🚀 Automated Deployment with GitHub Pages & Actions
+
+The repository includes a production-grade CI/CD pipeline in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) that executes automated quality checks and deploys the application to **GitHub Pages**.
+
+### Step 1: Configure GitHub Repository Secrets
+
+To allow the static build on GitHub Pages to connect to your Supabase project securely without exposing keys in your public Git commits:
+
+1. In your GitHub repository, navigate to **Settings** > **Secrets and variables** > **Actions**.
+2. Click **New repository secret** and add the following two secrets:
+   - Name: `SUPABASE_URL` | Value: `https://your-project-id.supabase.co`
+   - Name: `SUPABASE_ANON_KEY` | Value: `your-anon-public-key`
+
+### Step 2: Configure GitHub Pages Source
+
+1. In your GitHub repository, navigate to **Settings** > **Pages**.
+2. Under **Build and deployment** > **Source**, select **GitHub Actions**.
+
+### Step 3: Triggering Deployment
+
+Every push to the `main` branch automatically triggers the workflow:
+1. **QA Step (`test`)**: Spins up Ubuntu with Node.js 20 and executes `node --test tests/*.test.js`. If any test fails, deployment is automatically halted.
+2. **Deploy Step (`deploy`)**: Injects the repository secrets into `src/env.local.js`, bundles the static assets, and deploys directly to `https://<username>.github.io/<repo-name>/`.
+3. You can also manually trigger a deployment at any time from the **Actions** tab by selecting **Deploy DAWlloween to GitHub Pages** > **Run workflow**.
 
 ---
 
 ## 📜 Methodology & SDD
 
-This repository is governed by **Spec-Driven Development (SDD)** in conjunction with Agile sprints:
-1. `Spec` ➔ Detailed requirements agreed with the PM.
-2. `Plan` ➔ Prioritised user story sequencing.
-3. `Tasks` ➔ Actionable, granular task backlogs.
-4. `Implement` ➔ Step-by-step TDD / incremental build with verification.
-5. `Review` ➔ Validation against documented acceptance criteria.
+This project strictly follows **Spec-Driven Development (SDD)** with Agile iterations:
+1. `Spec`: Technical specifications agreed with the Product Manager.
+2. `Plan`: Priority ordering and component dependency graph.
+3. `Tasks`: Traceable, granular tasks.
+4. `Implement`: Test-Driven Development (TDD) and clean code implementation.
+5. `Review`: User Story validation and verification against acceptance criteria.
 
 ---
 
 ## 🎃 Authors & Acknowledgements
 
-Created with passion for **DAW 1** and **DAW 2** students at **Ilerna Sevilla** for an unforgettable Halloween showcase.
+Created with pride for **DAW 1** and **DAW 2** students at **Ilerna Sevilla** for an unforgettable Halloween showcase. Happy coding and happy Halloween! 👻🎃

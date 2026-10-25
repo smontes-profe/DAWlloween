@@ -21,5 +21,5 @@
 - [<] [T4] [US4.2] Implement configurable background polling mechanism (every 30–60s) in `HallOfFameView` with lifecycle and visibility detection (`visibilitychange` / `document.hidden`) to pause when tab is inactive, emitting toast notifications on newly arrived reactions, with unit tests in `tests/hallOfFameSync.test.js`.
 
 ### US4.3: Despliegue Automatizado en GitHub Pages con GitHub Actions
-- [ ] [T5] [US4.3] Create CI/CD workflow in `.github/workflows/deploy.yml` triggered on push to `main`, validating entire test suite (`node --test tests/*.test.js`), injecting Supabase Repository Secrets (`SUPABASE_URL`, `SUPABASE_ANON_KEY`), and deploying automatically to GitHub Pages (`gh-pages`).
-- [ ] [T6] [US4.3] Update `README.md` with pedagogical deployment guide, GitHub secrets configuration, and local MAMP instructions for DAW students.
+- [<] [T5] [US4.3] Create CI/CD workflow in `.github/workflows/deploy.yml` triggered on push to `main`, validating entire test suite (`node --test tests/*.test.js`), injecting Supabase Repository Secrets (`SUPABASE_URL`, `SUPABASE_ANON_KEY`), and deploying automatically to GitHub Pages (`gh-pages`).
+- [<] [T6] [US4.3] Update `README.md` with pedagogical deployment guide, GitHub secrets configuration, and local MAMP instructions for DAW students.
