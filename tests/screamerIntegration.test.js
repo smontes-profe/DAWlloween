@@ -186,7 +186,8 @@ describe('Screamer to Registration Integration Tests (US2.4 / T9)', () => {
       assert.ok(receivedEvents['trigger-screamer']);
       assert.strictEqual(receivedEvents['trigger-screamer'].reason, 'timer_expired');
 
-      // 3. Recorder starts recording immediately
+      // 3. Jumpscare visual playback starts and triggers recorder
+      eventBus.publish('screamer:playback-started', { durationMs: 3000 });
       assert.strictEqual(recorderService.isRecording, true);
 
       // Simulate completion of 2-second recording

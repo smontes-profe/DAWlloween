@@ -159,7 +159,7 @@ describe('ReactionRecorderService Unit Tests (US2.4 / T7)', () => {
     }
   });
 
-  it('should automatically trigger recording on game:trigger-screamer when listener is initialised', () => {
+  it('should automatically trigger recording on screamer:playback-started when listener is initialised', () => {
     const mockStream = new MockMediaStream();
     // Provide stream through service
     service.startRecording = function (opts) {
@@ -170,10 +170,10 @@ describe('ReactionRecorderService Unit Tests (US2.4 / T7)', () => {
 
     service.initialiseRecorderListener();
 
-    eventBus.publish('game:trigger-screamer', { reason: 'timer_expired' });
+    eventBus.publish('screamer:playback-started', { durationMs: 3500 });
 
     assert.strictEqual(service.isRecording, true);
-    assert.strictEqual(service.lastDurationMs, DEFAULT_RECORDING_DURATION_MS);
+    assert.strictEqual(service.lastDurationMs, 3500);
   });
 
   it('should clean up in-memory blob and revoke object URL on clearRecording() for zero persistence', () => {

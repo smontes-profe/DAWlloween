@@ -111,6 +111,7 @@ export class GameEngine {
     /** Climax trigger state to prevent duplicate activations while allowing continuous gameplay */
     this.isClimaxTriggered = false;
     this.climaxHaltTimeoutId = null;
+    this.unsubscribeTransitionComplete = null;
   }
 
   /**
@@ -170,7 +171,7 @@ export class GameEngine {
    * @param {KeyboardEvent} event - Keyboard event.
    */
   handleKeyDown(event) {
-    if (!event || !event.code) return;
+    if (!event || !event.code || this.isClimaxTriggered) return;
 
     const code = event.code;
     // Strict WASD mapping; arrow keys are explicitly excluded
@@ -233,7 +234,7 @@ export class GameEngine {
    */
   handleMouseDown(event) {
     if (!event || event.button !== 0) return;
-    if (this.state !== GAME_STATES.RUNNING) return;
+    if (this.isClimaxTriggered || this.state !== GAME_STATES.RUNNING) return;
 
     if (typeof event.preventDefault === 'function') {
       event.preventDefault();
@@ -531,7 +532,34 @@ export class GameEngine {
     // Check player vitality before processing timers, spawners, or movements
     if (this.player && (!this.player.isAlive || this.player.health <= 0)) {
       if (!this.isClimaxTriggered) {
-        this.triggerClimax('player_defeat', 0);
+        this.triggerClimax('player_defeat');
+      }
+      // Keep background enemies active and animating without advancing countdown or player movement
+      this.checkProjectileCollisions();
+      for (let i = this.enemies.length - 1; i >= 0; i--) {
+        const enemy = this.enemies[i];
+        if (enemy && enemy.isAlive) {
+          if (typeof enemy.pursue === 'function' && this.player) {
+            enemy.pursue(this.player.x, this.player.y, deltaTime);
+          } else if (typeof enemy.update === 'function') {
+            enemy.update(deltaTime, this.player);
+          }
+        }
+      }
+      return;
+    }
+
+    if (this.isClimaxTriggered) {
+      // Climax triggered by timer expiration: keep background enemies updating behind overlay
+      for (let i = this.enemies.length - 1; i >= 0; i--) {
+        const enemy = this.enemies[i];
+        if (enemy && enemy.isAlive) {
+          if (typeof enemy.pursue === 'function' && this.player) {
+            enemy.pursue(this.player.x, this.player.y, deltaTime);
+          } else if (typeof enemy.update === 'function') {
+            enemy.update(deltaTime, this.player);
+          }
+        }
       }
       return;
     }
@@ -821,6 +849,13 @@ export class GameEngine {
     this.state = GAME_STATES.RUNNING;
     this.lastTimestamp = 0;
     this.attachInputListeners();
+
+    if (eventBus && typeof eventBus.subscribe === 'function' && !this.unsubscribeTransitionComplete) {
+      this.unsubscribeTransitionComplete = eventBus.subscribe('screamer:transition-complete', () => {
+        this.haltClimax();
+      });
+    }
+
     if (this.weapon && typeof this.weapon.publishAmmoState === 'function') {
       this.weapon.publishAmmoState();
     }
@@ -868,6 +903,9 @@ export class GameEngine {
 
     this.isClimaxTriggered = true;
 
+    // Immediately detach player input listeners so clicking/shooting is disabled during the scare
+    this.detachInputListeners();
+
     // Enforce dead state on player if defeat triggered
     if (reason === 'player_defeat' && this.player) {
       this.player.isAlive = false;
@@ -886,22 +924,18 @@ export class GameEngine {
       eventBus.publish('game:trigger-screamer', payload);
     }
 
-    // For player defeat, halt immediately without delay so dead player state is frozen
-    const effectiveDelay = reason === 'player_defeat' ? 0 : haltDelayMs;
+    // Keep the game simulation and background rendering alive during the jumpscare!
+    // The engine cleanly halts upon receiving 'screamer:transition-complete'.
+    // As a safety net fallback: if transition-complete is delayed or stalled, halt automatically
+    const safetyTimeoutMs = Math.max(haltDelayMs, 3500) + 4000;
+    const scheduleTimeout = typeof window !== 'undefined' && typeof window.setTimeout === 'function'
+      ? window.setTimeout
+      : (typeof setTimeout === 'function' ? setTimeout : null);
 
-    // Schedule game halt after delay (or immediately for player defeat)
-    if (effectiveDelay > 0) {
-      const scheduleTimeout = typeof window !== 'undefined' && typeof window.setTimeout === 'function'
-        ? window.setTimeout
-        : (typeof setTimeout === 'function' ? setTimeout : null);
-
-      if (scheduleTimeout) {
-        this.climaxHaltTimeoutId = scheduleTimeout(() => {
-          this.haltClimax();
-        }, effectiveDelay);
-      }
-    } else {
-      this.haltClimax();
+    if (scheduleTimeout) {
+      this.climaxHaltTimeoutId = scheduleTimeout(() => {
+        this.haltClimax();
+      }, safetyTimeoutMs);
     }
 
     return payload;
@@ -911,6 +945,15 @@ export class GameEngine {
    * Halts the game loop and detaches input listeners once the climax grace period has elapsed.
    */
   haltClimax() {
+    if (this.climaxHaltTimeoutId !== null) {
+      if (typeof window !== 'undefined' && typeof window.clearTimeout === 'function') {
+        window.clearTimeout(this.climaxHaltTimeoutId);
+      } else if (typeof clearTimeout === 'function') {
+        clearTimeout(this.climaxHaltTimeoutId);
+      }
+      this.climaxHaltTimeoutId = null;
+    }
+
     this.state = GAME_STATES.TRIGGERED;
     this.cancelLoop();
     this.detachInputListeners();
@@ -944,6 +987,12 @@ export class GameEngine {
       }
       this.climaxHaltTimeoutId = null;
     }
+
+    if (typeof this.unsubscribeTransitionComplete === 'function') {
+      this.unsubscribeTransitionComplete();
+      this.unsubscribeTransitionComplete = null;
+    }
+
     this.state = GAME_STATES.STOPPED;
     this.cancelLoop();
     this.detachInputListeners();

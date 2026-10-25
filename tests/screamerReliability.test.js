@@ -115,6 +115,7 @@ function createReliabilityDom() {
       }
     },
     _scheduledTimeouts: scheduledTimeouts,
+    _windowListeners: windowListeners,
     _triggerTimeout: (id) => {
       const entry = scheduledTimeouts.get(id);
       if (entry) {
@@ -297,6 +298,70 @@ describe('Jumpscare Activation Reliability Unit Tests (US5.2 / T1)', () => {
 
   it('should calibrate default webcam reaction recording duration to match SCREAMER_CONFIG.durationMs', () => {
     assert.strictEqual(DEFAULT_RECORDING_DURATION_MS, SCREAMER_CONFIG.durationMs);
+  });
+
+  it('should publish screamer:playback-started event when video playback starts', () => {
+    const { mockWindow, container, mockVideo } = createReliabilityDom();
+    global.window = mockWindow;
+
+    let publishedPayload = null;
+    const unsub = eventBus.subscribe('screamer:playback-started', (data) => {
+      publishedPayload = data;
+    });
+
+    try {
+      view.mount(container);
+      mockVideo.dispatchEvent('playing');
+
+      assert.ok(publishedPayload, 'Expected screamer:playback-started to be published');
+      assert.strictEqual(publishedPayload.isFallback, false);
+      assert.strictEqual(publishedPayload.durationMs, DEFAULT_SCREAMER_DURATION_MS);
+    } finally {
+      unsub();
+    }
+  });
+
+  it('should publish screamer:playback-started event with isFallback true when video fails', () => {
+    const { mockWindow, container, mockVideo } = createReliabilityDom();
+    global.window = mockWindow;
+
+    let publishedPayload = null;
+    const unsub = eventBus.subscribe('screamer:playback-started', (data) => {
+      publishedPayload = data;
+    });
+
+    try {
+      view.mount(container);
+      mockVideo.dispatchEvent('error');
+
+      assert.ok(publishedPayload, 'Expected screamer:playback-started on error fallback');
+      assert.strictEqual(publishedPayload.isFallback, true);
+      assert.strictEqual(publishedPayload.durationMs, DEFAULT_SCREAMER_DURATION_MS);
+    } finally {
+      unsub();
+    }
+  });
+
+  it('should ignore Space, Enter, and background clicks during jumpscare to prevent accidental skips', () => {
+    const { mockWindow, container } = createReliabilityDom();
+    global.window = mockWindow;
+
+    view.mount(container);
+
+    const keydownListeners = mockWindow._windowListeners.get('keydown') || [];
+    assert.ok(keydownListeners.length > 0);
+
+    // 1. Simulate Space press (player shooting/reloading)
+    keydownListeners[0]({ key: ' ', preventDefault() {} });
+    assert.strictEqual(mockWindow.location.hash, '#play', 'Space must not skip jumpscare');
+
+    // 2. Simulate Enter press
+    keydownListeners[0]({ key: 'Enter', preventDefault() {} });
+    assert.strictEqual(mockWindow.location.hash, '#play', 'Enter must not skip jumpscare');
+
+    // 3. Simulate Escape press (accessibility)
+    keydownListeners[0]({ key: 'Escape', preventDefault() {} });
+    assert.strictEqual(mockWindow.location.hash, '#register', 'Escape must transition to register');
   });
 
   it('should cleanly cancel both transition and buffering timeouts on unmount()', () => {

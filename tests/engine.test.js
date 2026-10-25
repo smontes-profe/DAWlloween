@@ -703,9 +703,9 @@ describe('GameEngine Climax Trigger & Screamer Payload Unit Tests (US1.6 / T18)'
     unsubscribe();
   });
 
-  it('should emit game:trigger-screamer upon player defeat and transition to TRIGGERED immediately', () => {
+  it('should emit game:trigger-screamer upon player defeat and transition to TRIGGERED upon transition complete', () => {
     const engine = new GameEngine({ survivalDuration: 60 });
-    engine.state = GAME_STATES.RUNNING;
+    engine.start();
     engine.isSpawnerActive = false;
     engine.player.health = 20;
 
@@ -728,25 +728,33 @@ describe('GameEngine Climax Trigger & Screamer Payload Unit Tests (US1.6 / T18)'
     assert.strictEqual(engine.isClimaxTriggered, true);
     assert.strictEqual(engine.player.isAlive, false);
     assert.strictEqual(engine.player.health, 0);
-    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED, 'Engine state should immediately be TRIGGERED on defeat');
+    assert.strictEqual(engine.state, GAME_STATES.RUNNING, 'Engine state should remain RUNNING during shock');
     assert.ok(screamerPayload !== null);
     assert.strictEqual(screamerPayload.reason, 'player_defeat');
     assert.strictEqual(typeof screamerPayload.elapsedTime, 'number');
 
+    // ScreamerView completes transition
+    eventBus.publish('screamer:transition-complete', {});
+    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED, 'Engine state should transition to TRIGGERED on screamer complete');
+
     unsubscribe();
+    engine.destroy();
   });
 
   it('should not allow triggerClimax to execute multiple times once triggered', () => {
     const engine = new GameEngine();
-    engine.state = GAME_STATES.RUNNING;
+    engine.start();
 
     const payload1 = engine.triggerClimax('timer_expired', 0);
     assert.ok(payload1 !== null);
-    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED);
     assert.strictEqual(engine.isClimaxTriggered, true);
 
     const payload2 = engine.triggerClimax('player_defeat');
     assert.strictEqual(payload2, null);
+
+    engine.haltClimax();
+    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED);
+    engine.destroy();
   });
 
   it('should prevent engine from starting or continuing simulation when in TRIGGERED state', () => {

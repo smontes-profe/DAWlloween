@@ -114,6 +114,9 @@ export class ScreamerView {
     /** @type {boolean} */
     this.isVideoActive = false;
 
+    /** @type {boolean} */
+    this.hasNotifiedPlaybackStart = false;
+
     /** @type {((event: KeyboardEvent) => void)|null} */
     this.boundKeyDownHandler = null;
 
@@ -156,15 +159,15 @@ export class ScreamerView {
     this.container = container;
     this.isTransitioning = false;
     this.isVideoActive = false;
+    this.hasNotifiedPlaybackStart = false;
 
     // Render transparent shock DOM structure over the active game view
     this.container.innerHTML = this.template();
 
-
-
-    // Bind accessibility keyboard skip (Escape / Space / Enter)
+    // Bind accessibility keyboard skip (Escape only; Space and Enter are explicitly
+    // blocked to prevent accidental player shooting from skipping the scare)
     this.boundKeyDownHandler = (event) => {
-      if (['Escape', ' ', 'Enter'].includes(event.key)) {
+      if (event.key === 'Escape') {
         event.preventDefault();
         this.transitionToRegister();
       }
@@ -173,13 +176,15 @@ export class ScreamerView {
       window.addEventListener('keydown', this.boundKeyDownHandler);
     }
 
-    // Bind click / tap to skip
-    const viewElement = this.container.querySelector('.screamer-view');
-    if (viewElement) {
-      this.boundClickHandler = () => {
+    // Explicit skip button listener (accessible button only; entire screen clicks are
+    // intentionally not bound to prevent weapon left-clicks from cutting the jumpscare short)
+    const skipBtn = this.container.querySelector('.screamer-view__skip-btn');
+    if (skipBtn) {
+      this.boundClickHandler = (e) => {
+        if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
         this.transitionToRegister();
       };
-      viewElement.addEventListener('click', this.boundClickHandler);
+      skipBtn.addEventListener('click', this.boundClickHandler);
     }
 
     // Emergency safety fallback timer: ensures navigation to #register
@@ -190,6 +195,46 @@ export class ScreamerView {
 
     // Initialise Chroma-Key video pipeline
     this.initialiseVideoChroma();
+  }
+
+  /**
+   * Dispatches the decoupled screamer:playback-started event once the visual jumpscare
+   * (video frame playback or fallback SVG) is genuinely visible on screen.
+   * Starts the exact durationMs timer from this precise moment.
+   *
+   * @param {boolean} [isFallback=false] - Whether fallback SVG is active instead of video.
+   */
+  notifyPlaybackStarted(isFallback = false) {
+    if (this.hasNotifiedPlaybackStart) {
+      return;
+    }
+    this.hasNotifiedPlaybackStart = true;
+
+    // Clear buffering guard timeout
+    if (this.bufferingFallbackTimeoutId !== null && typeof window !== 'undefined') {
+      window.clearTimeout(this.bufferingFallbackTimeoutId);
+      this.bufferingFallbackTimeoutId = null;
+    }
+
+    // Reset transition timeout to durationMs starting from THIS exact visual moment
+    if (this.transitionTimeoutId !== null && typeof window !== 'undefined') {
+      window.clearTimeout(this.transitionTimeoutId);
+      this.transitionTimeoutId = null;
+    }
+
+    if (typeof window !== 'undefined' && typeof window.setTimeout === 'function') {
+      this.transitionTimeoutId = window.setTimeout(() => {
+        this.transitionToRegister();
+      }, DEFAULT_SCREAMER_DURATION_MS);
+    }
+
+    if (eventBus && typeof eventBus.publish === 'function') {
+      eventBus.publish('screamer:playback-started', {
+        durationMs: DEFAULT_SCREAMER_DURATION_MS,
+        isFallback,
+        timestamp: Date.now()
+      });
+    }
   }
 
   /**
@@ -211,7 +256,7 @@ export class ScreamerView {
     this.chromaCtx = this.chromaCanvas.getContext('2d');
 
     // Video ended handler: retain the horrifying climactic frame on the chroma canvas
-    // over the running game until the 3-second exposure duration elapses
+    // over the running game until the exposure duration elapses
     this.boundVideoEndedHandler = () => {
       // Keep last frame rendered on canvas without cutting away abruptly
     };
@@ -220,33 +265,20 @@ export class ScreamerView {
     // Video error handler -> fallback to SVG animation
     this.boundVideoErrorHandler = () => {
       console.warn('[ScreamerView] Jumpscare video unavailable or decoding failed. Falling back to SVG animation.');
-      if (this.bufferingFallbackTimeoutId !== null && typeof window !== 'undefined') {
-        window.clearTimeout(this.bufferingFallbackTimeoutId);
-        this.bufferingFallbackTimeoutId = null;
-      }
       if (monsterSvg) {
         monsterSvg.classList.remove('screamer-view__monster--hidden');
       }
       if (this.chromaCanvas) {
         this.chromaCanvas.style.display = 'none';
       }
-      // Guarantee full 3.0s exposure on SVG fallback
-      if (this.transitionTimeoutId !== null && typeof window !== 'undefined') {
-        window.clearTimeout(this.transitionTimeoutId);
-      }
-      this.transitionTimeoutId = window.setTimeout(() => {
-        this.transitionToRegister();
-      }, DEFAULT_SCREAMER_DURATION_MS);
+
+      this.notifyPlaybackStarted(true);
     };
     this.videoElement.addEventListener('error', this.boundVideoErrorHandler);
 
-    // Video play handler -> start real-time green screen removal loop
+    // Video play handler -> start real-time green screen removal loop and notify playback start
     this.boundVideoPlayHandler = () => {
       this.isVideoActive = true;
-      if (this.bufferingFallbackTimeoutId !== null && typeof window !== 'undefined') {
-        window.clearTimeout(this.bufferingFallbackTimeoutId);
-        this.bufferingFallbackTimeoutId = null;
-      }
       if (monsterSvg) {
         monsterSvg.classList.add('screamer-view__monster--hidden');
       }
@@ -254,17 +286,11 @@ export class ScreamerView {
         this.chromaCanvas.style.display = 'block';
       }
 
-      // Set transition timeout to 3.0s as per PM specification
-      if (this.transitionTimeoutId !== null && typeof window !== 'undefined') {
-        window.clearTimeout(this.transitionTimeoutId);
-      }
-      this.transitionTimeoutId = window.setTimeout(() => {
-        this.transitionToRegister();
-      }, DEFAULT_SCREAMER_DURATION_MS);
-
+      this.notifyPlaybackStarted(false);
       this.startChromaLoop();
     };
     this.videoElement.addEventListener('play', this.boundVideoPlayHandler);
+    this.videoElement.addEventListener('playing', this.boundVideoPlayHandler);
 
     // Buffering guard: if video does not begin playing within threshold, engage SVG fallback
     this.bufferingFallbackTimeoutId = window.setTimeout(() => {
@@ -443,6 +469,7 @@ export class ScreamerView {
       }
       if (this.boundVideoPlayHandler) {
         this.videoElement.removeEventListener('play', this.boundVideoPlayHandler);
+        this.videoElement.removeEventListener('playing', this.boundVideoPlayHandler);
       }
       if (this.boundVideoErrorHandler) {
         this.videoElement.removeEventListener('error', this.boundVideoErrorHandler);

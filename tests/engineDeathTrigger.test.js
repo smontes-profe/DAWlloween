@@ -84,13 +84,16 @@ describe('GameEngine Player Defeat Climax Trigger Unit Tests (US5.2 / T2)', () =
 
     assert.ok(publishedScreamer, 'game:trigger-screamer must be published immediately upon player defeat');
     assert.strictEqual(publishedScreamer.reason, 'player_defeat', 'Payload reason must strictly be player_defeat');
-    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED, 'Engine state must immediately switch to TRIGGERED');
     assert.strictEqual(engine.isClimaxTriggered, true, 'isClimaxTriggered flag must be set to true');
+
+    // Engine halts cleanly when screamer completes transition
+    eventBus.publish('screamer:transition-complete', {});
+    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED, 'Engine state must switch to TRIGGERED on screamer transition complete');
 
     engine.destroy();
   });
 
-  it('should immediately halt the loop and detach input listeners on player defeat without delay', () => {
+  it('should immediately detach input listeners on player defeat and halt on screamer transition complete', () => {
     const canvas = createMockCanvas();
     const player = new Player({ x: 640, y: 360, health: 10 });
     const engine = new GameEngine({ canvas, player, survivalDuration: 45 });
@@ -103,12 +106,15 @@ describe('GameEngine Player Defeat Climax Trigger Unit Tests (US5.2 / T2)', () =
     // Call triggerClimax directly with player_defeat
     engine.triggerClimax('player_defeat');
 
-    // Verify immediate halt without needing to wait for a timeout
-    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED, 'Engine state must be TRIGGERED');
-    assert.strictEqual(engine.climaxHaltTimeoutId, null, 'climaxHaltTimeoutId should remain null for immediate defeat');
+    // Verify inputs are cleared immediately during shock exposure
     assert.strictEqual(engine.activeKeys.size, 0, 'Active keys set should be cleared immediately');
     assert.strictEqual(player.isAlive, false, 'Player isAlive must be false');
     assert.strictEqual(player.health, 0, 'Player health must be set to 0');
+    assert.strictEqual(engine.isClimaxTriggered, true, 'isClimaxTriggered must be true');
+
+    // Complete jumpscare transition to halt engine
+    eventBus.publish('screamer:transition-complete', {});
+    assert.strictEqual(engine.state, GAME_STATES.TRIGGERED, 'Engine state must be TRIGGERED');
 
     engine.destroy();
   });
@@ -159,6 +165,9 @@ describe('GameEngine Player Defeat Climax Trigger Unit Tests (US5.2 / T2)', () =
 
     assert.ok(publishedScreamer, 'game:trigger-screamer should fire upon detecting defeated player in update');
     assert.strictEqual(publishedScreamer.reason, 'player_defeat');
+    assert.strictEqual(engine.isClimaxTriggered, true);
+
+    eventBus.publish('screamer:transition-complete', {});
     assert.strictEqual(engine.state, GAME_STATES.TRIGGERED);
 
     engine.destroy();

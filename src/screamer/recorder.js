@@ -247,7 +247,7 @@ export class ReactionRecorderService {
   }
 
   /**
-   * Initialises the EventBus listener to trigger 2.0s recording upon game:trigger-screamer.
+   * Initialises the EventBus listener to trigger recording upon visual screamer playback.
    */
   initialiseRecorderListener() {
     if (this.unsubscribeTrigger) {
@@ -255,8 +255,11 @@ export class ReactionRecorderService {
     }
 
     if (eventBus && typeof eventBus.subscribe === 'function') {
-      this.unsubscribeTrigger = eventBus.subscribe('game:trigger-screamer', () => {
-        this.startRecording({ durationMs: DEFAULT_RECORDING_DURATION_MS });
+      this.unsubscribeTrigger = eventBus.subscribe('screamer:playback-started', (data) => {
+        const durationMs = (data && typeof data.durationMs === 'number')
+          ? data.durationMs
+          : DEFAULT_RECORDING_DURATION_MS;
+        this.startRecording({ durationMs });
       });
     }
   }
