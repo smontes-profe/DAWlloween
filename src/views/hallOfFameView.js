@@ -103,6 +103,15 @@ export class HallOfFameView {
     /** @type {number|null} */
     this.pollTimer = null;
 
+    /** @type {number} */
+    this.pollIntervalMs = options.pollIntervalMs ?? 30000;
+
+    /** @type {boolean} */
+    this.enablePolling = options.enablePolling ?? true;
+
+    /** @type {Set<string>} */
+    this.knownReactionIds = new Set();
+
     /** @type {((event: Event) => void)|null} */
     this.boundVisibilityHandler = null;
 
@@ -114,17 +123,70 @@ export class HallOfFameView {
    * Mounts the Hall of Fame view into the target DOM container.
    *
    * @param {HTMLElement} container - The SPA host container.
+   * @returns {Promise<Array<Object>>}
    */
-  mount(container) {
+  async mount(container) {
     if (!container) {
-      return;
+      return [];
     }
 
     this.container = container;
     this.container.innerHTML = this.template();
 
     this.attachEventListeners();
-    return this.loadReactions();
+    this.setupVisibilityDetection();
+
+    const initialRecords = await this.loadReactions();
+    this.startPolling();
+    return initialRecords;
+  }
+
+  /**
+   * Starts periodic background polling for newly persisted reaction entries.
+   */
+  startPolling() {
+    this.stopPolling();
+
+    if (!this.enablePolling || this.pollIntervalMs <= 0) {
+      return;
+    }
+
+    this.pollTimer = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        return;
+      }
+      await this.loadReactions({ isPolling: true });
+    }, this.pollIntervalMs);
+  }
+
+  /**
+   * Stops active background polling timer.
+   */
+  stopPolling() {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+  }
+
+  /**
+   * Listens to page visibility change events to pause polling when inactive.
+   */
+  setupVisibilityDetection() {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    this.boundVisibilityHandler = async () => {
+      if (document.hidden) {
+        this.stopPolling();
+      } else {
+        await this.loadReactions({ isPolling: true });
+        this.startPolling();
+      }
+    };
+
+    document.addEventListener('visibilitychange', this.boundVisibilityHandler);
   }
 
   /**
@@ -239,18 +301,34 @@ export class HallOfFameView {
    *
    * @param {Object} [options={}] - Load options.
    * @param {boolean} [options.isManual=false] - Whether triggered manually by user.
+   * @param {boolean} [options.isPolling=false] - Whether triggered automatically by polling.
    * @returns {Promise<Array<Object>>}
    */
-  async loadReactions({ isManual = false } = {}) {
+  async loadReactions({ isManual = false, isPolling = false } = {}) {
     if (!this.container) return [];
 
     this.isLoading = true;
     const gridContainer = this.container.querySelector('#hall-grid-container');
     const badge = this.container.querySelector('#hall-count-badge');
 
+    // Only display skeletons on initial mount when no cards exist yet
+    if (!isManual && !isPolling && this.reactions.length === 0 && gridContainer) {
+      gridContainer.innerHTML = this.renderSkeletons(6);
+    }
+
     try {
       const records = await this.service.fetchHallOfFame();
-      this.reactions = Array.isArray(records) ? records : [];
+      const freshReactions = Array.isArray(records) ? records : [];
+
+      // Detect new reactions compared to known IDs
+      const previousSize = this.knownReactionIds.size;
+      const freshIds = freshReactions.map((r) => r.id);
+      const newItemsCount = previousSize > 0
+        ? freshIds.filter((id) => !this.knownReactionIds.has(id)).length
+        : 0;
+
+      this.reactions = freshReactions;
+      this.knownReactionIds = new Set(freshIds);
 
       if (badge) {
         badge.textContent = `${this.reactions.length} Alma${this.reactions.length === 1 ? '' : 's'} Inmortalizada${this.reactions.length === 1 ? '' : 's'}`;
@@ -266,18 +344,24 @@ export class HallOfFameView {
 
       if (isManual && this.alerts && typeof this.alerts.info === 'function') {
         this.alerts.info('Mural de reacciones actualizado.', 'Hall of Fame', 2500);
+      } else if (isPolling && newItemsCount > 0 && this.alerts && typeof this.alerts.info === 'function') {
+        const message = newItemsCount === 1
+          ? '¡Ha caído 1 nueva alma en el mural!'
+          : `¡Han caído ${newItemsCount} nuevas almas en el mural!`;
+        this.alerts.info(message, 'Hall of Fame', 3500);
       }
 
       return this.reactions;
     } catch (err) {
       console.error('[HallOfFameView] Failed to load reactions:', err);
-      if (gridContainer) {
+      // If we already have cards on screen, keep them and only notify via alert
+      if (gridContainer && this.reactions.length === 0) {
         gridContainer.innerHTML = this.renderErrorState(err.message);
       }
       if (this.alerts && typeof this.alerts.error === 'function') {
         this.alerts.error('No se pudo conectar con el inframundo.', 'Error de Conexión', 4000);
       }
-      return [];
+      return this.reactions;
     } finally {
       this.isLoading = false;
     }

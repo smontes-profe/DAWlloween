@@ -217,6 +217,67 @@ describe('HallOfFameView Component Unit Tests (US4.1 / T2)', () => {
     assert.ok(registeredView instanceof HallOfFameView);
   });
 
+  it('should trigger manual refresh via FAB and emit info alert upon completion', async () => {
+    let fetchCount = 0;
+    const trackingSupabase = {
+      fetchHallOfFame: async () => {
+        fetchCount++;
+        return [
+          {
+            id: `test-${fetchCount}`,
+            nickname: `RefreshedPlayer_${fetchCount}`,
+            video_url: null,
+            photo_url: 'https://example.com/photo.webp',
+            created_at: new Date().toISOString()
+          }
+        ];
+      }
+    };
+
+    const view = new HallOfFameView({
+      supabaseService: trackingSupabase,
+      alertsService: mockAlerts
+    });
+
+    await view.mount(mockContainer);
+    assert.equal(fetchCount, 1);
+
+    // Trigger FAB click
+    await view.refreshWithSpin();
+    assert.equal(fetchCount, 2);
+
+    const grid = mockContainer.querySelector('#hall-grid-container');
+    assert.ok(grid.innerHTML.includes('RefreshedPlayer_2'));
+    assert.ok(mockAlerts.infoCalls.some((c) => c.msg.includes('Mural de reacciones actualizado')));
+  });
+
+  it('should preserve existing cards on screen if manual refresh encounters an error', async () => {
+    let callIndex = 0;
+    const intermittentSupabase = {
+      fetchHallOfFame: async () => {
+        callIndex++;
+        if (callIndex === 1) {
+          return [{ id: '1', nickname: 'SurvivorOne', photo_url: 'https://example.com/p.webp' }];
+        }
+        throw new Error('Temporary glitch');
+      }
+    };
+
+    const view = new HallOfFameView({
+      supabaseService: intermittentSupabase,
+      alertsService: mockAlerts
+    });
+
+    await view.mount(mockContainer);
+    const grid = mockContainer.querySelector('#hall-grid-container');
+    assert.ok(grid.innerHTML.includes('SurvivorOne'));
+
+    // Manual refresh fails, but cards should be preserved
+    await view.refreshWithSpin();
+    assert.ok(grid.innerHTML.includes('SurvivorOne'));
+    assert.equal(mockAlerts.errorCalls.length, 1);
+  });
+
   it('should clean up timers and references upon destroy()', () => {
     const view = new HallOfFameView({
       supabaseService: mockSupabase,

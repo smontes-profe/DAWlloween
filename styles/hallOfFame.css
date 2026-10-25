@@ -378,6 +378,11 @@
   transform: scale(0.95);
 }
 
+.hall-fab-refresh.btn-refresh--spinning {
+  animation: spinReel 0.8s linear infinite;
+  pointer-events: none;
+}
+
 /* --------------------------------------------------------------------------
    9. Keyframe Animations
    -------------------------------------------------------------------------- */
