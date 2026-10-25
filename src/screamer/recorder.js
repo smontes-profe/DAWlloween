@@ -13,9 +13,10 @@ import { eventBus } from '../utils/eventBus.js';
 
 /**
  * Default duration in milliseconds for reaction clip recording.
+ * Calibrated to 6000ms to synchronise with the 6-second jumpscare and continuous gameplay duration.
  * @constant {number}
  */
-export const DEFAULT_RECORDING_DURATION_MS = 2000;
+export const DEFAULT_RECORDING_DURATION_MS = 6000;
 
 /**
  * Detects the best supported video MIME type in the current client browser environment.

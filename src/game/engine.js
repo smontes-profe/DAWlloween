@@ -843,13 +843,13 @@ export class GameEngine {
   /**
    * Triggers the game climax jumpscare sequence. Emits decoupled game:trigger-screamer event
    * while allowing the game loop, physics, input, and rendering to continue seamlessly
-   * for approximately 3 seconds during the scare before halting simulation.
+   * for approximately 6 seconds during the scare before halting simulation.
    *
    * @param {string} [reason='timer_expired'] - Reason for climax ('timer_expired' or 'player_defeat').
-   * @param {number} [haltDelayMs=3000] - Milliseconds to let the game continue running before halting.
+   * @param {number} [haltDelayMs=6000] - Milliseconds to let the game continue running before halting.
    * @returns {Object|null} Published screamer payload, or null if already triggered.
    */
-  triggerClimax(reason = 'timer_expired', haltDelayMs = 3000) {
+  triggerClimax(reason = 'timer_expired', haltDelayMs = 6000) {
     if (this.isClimaxTriggered) {
       return null;
     }

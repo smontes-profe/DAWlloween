@@ -12,7 +12,7 @@ import { recorderService } from '../screamer/recorder.js';
 import { eventBus } from '../utils/eventBus.js';
 import { GameEngine } from '../game/engine.js';
 import { audioService } from '../services/audio.js';
-import { screamerView } from './screamerView.js';
+import { ScreamerView, screamerView } from './screamerView.js';
 
 /**
  * Game View component orchestrating the Canvas arena and HUD overlay.
@@ -40,6 +40,14 @@ export class GameView {
     this.ammoCylinder = null;
     /** @type {HTMLElement|null} */
     this.ammoLabel = null;
+    /** @type {HTMLElement|null} */
+    this.healthBox = null;
+    /** @type {HTMLElement|null} */
+    this.healthBarFill = null;
+    /** @type {HTMLElement|null} */
+    this.healthLabel = null;
+    /** @type {HTMLElement|null} */
+    this.statsCluster = null;
     /** @type {HTMLButtonElement|null} */
     this.audioToggleBtn = null;
     /** @type {HTMLButtonElement|null} */
@@ -59,6 +67,8 @@ export class GameView {
     this.unsubscribeMute = null;
     /** @type {Function|null} */
     this.unsubscribeTimer = null;
+    /** @type {Function|null} */
+    this.unsubscribeHealth = null;
   }
 
   /**
@@ -105,10 +115,72 @@ export class GameView {
     const hud = document.createElement('div');
     hud.className = 'game-hud';
 
-    // Top HUD Bar: Timer & Actions
+    // Top HUD Bar: Left Stats Cluster (Health & Ammo) & Right Actions
     const hudTop = document.createElement('div');
     hudTop.className = 'game-hud__top';
 
+    // Stats Cluster (Top-Left): Health Meter & Ammo Cylinder
+    const statsCluster = document.createElement('div');
+    statsCluster.className = 'game-hud__stats';
+
+    // Player Health Meter
+    const healthBox = document.createElement('div');
+    healthBox.className = 'hud-health';
+    healthBox.setAttribute('role', 'status');
+    healthBox.setAttribute('aria-label', 'Salud del jugador: 100%');
+
+    const healthIcon = document.createElement('span');
+    healthIcon.className = 'hud-health__icon';
+    healthIcon.setAttribute('aria-hidden', 'true');
+    healthIcon.textContent = '❤️';
+
+    const healthBarTrack = document.createElement('div');
+    healthBarTrack.className = 'hud-health__track';
+
+    const healthBarFill = document.createElement('div');
+    healthBarFill.className = 'hud-health__fill';
+    if (healthBarFill.style) {
+      healthBarFill.style.width = '100%';
+    }
+
+    healthBarTrack.appendChild(healthBarFill);
+
+    const healthLabel = document.createElement('span');
+    healthLabel.className = 'hud-health__label';
+    healthLabel.textContent = '100%';
+
+    healthBox.appendChild(healthIcon);
+    healthBox.appendChild(healthBarTrack);
+    healthBox.appendChild(healthLabel);
+
+    // Ammunition Box
+    const ammoBox = document.createElement('div');
+    ammoBox.className = 'hud-ammo';
+    ammoBox.setAttribute('aria-label', 'Ammunition status');
+
+    const ammoCylinder = document.createElement('div');
+    ammoCylinder.className = 'hud-ammo__cylinder';
+
+    // Build 6 bullet slots
+    for (let i = 0; i < 6; i += 1) {
+      const bullet = document.createElement('span');
+      bullet.className = 'hud-bullet';
+      bullet.setAttribute('aria-hidden', 'true');
+      ammoCylinder.appendChild(bullet);
+    }
+
+    const ammoLabel = document.createElement('span');
+    ammoLabel.className = 'hud-ammo__label';
+    ammoLabel.textContent = '6 / 6';
+
+    ammoBox.appendChild(ammoCylinder);
+    ammoBox.appendChild(ammoLabel);
+
+    statsCluster.appendChild(healthBox);
+    statsCluster.appendChild(ammoBox);
+    hudTop.appendChild(statsCluster);
+
+    // Hidden Countdown Timer (Suppressed visually to preserve surprise jumpscare factor)
     const timerContainer = document.createElement('div');
     timerContainer.className = 'hud-timer';
     timerContainer.setAttribute('role', 'timer');
@@ -162,34 +234,6 @@ export class GameView {
     hudTop.appendChild(hudActions);
     hud.appendChild(hudTop);
 
-    // Bottom HUD Bar: Ammo cylinder & Status
-    const hudBottom = document.createElement('div');
-    hudBottom.className = 'game-hud__bottom';
-
-    const ammoBox = document.createElement('div');
-    ammoBox.className = 'hud-ammo';
-    ammoBox.setAttribute('aria-label', 'Ammunition status');
-
-    const ammoCylinder = document.createElement('div');
-    ammoCylinder.className = 'hud-ammo__cylinder';
-
-    // Build 6 bullet slots
-    for (let i = 0; i < 6; i += 1) {
-      const bullet = document.createElement('span');
-      bullet.className = 'hud-bullet';
-      bullet.setAttribute('aria-hidden', 'true');
-      ammoCylinder.appendChild(bullet);
-    }
-
-    const ammoLabel = document.createElement('span');
-    ammoLabel.className = 'hud-ammo__label';
-    ammoLabel.textContent = '6 / 6';
-
-    ammoBox.appendChild(ammoCylinder);
-    ammoBox.appendChild(ammoLabel);
-    hudBottom.appendChild(ammoBox);
-    hud.appendChild(hudBottom);
-
     arenaWrapper.appendChild(hud);
     viewWrapper.appendChild(arenaWrapper);
     container.appendChild(viewWrapper);
@@ -209,6 +253,10 @@ export class GameView {
     this.rootElement = viewWrapper;
     this.canvas = canvas;
     this.videoElement = video;
+    this.healthBox = healthBox;
+    this.healthBarFill = healthBarFill;
+    this.healthLabel = healthLabel;
+    this.statsCluster = statsCluster;
     this.timerContainer = timerContainer;
     this.timerDigits = timerDigits;
     this.timerIcon = timerIcon;
@@ -235,6 +283,11 @@ export class GameView {
       window.addEventListener('keydown', this.boundUserGesture, { once: true });
     }
 
+    // Preload jumpscare video asset in background to eliminate buffering delays
+    if (typeof ScreamerView.preload === 'function') {
+      ScreamerView.preload();
+    }
+
     // Initialise and boot Canvas 2D Game Engine (5 seconds survival timer for agile testing)
     this.engine = new GameEngine({ canvas, survivalDuration: 5 });
     this.engine.start();
@@ -244,6 +297,12 @@ export class GameView {
       this.unsubscribeAmmo = eventBus.subscribe('game:ammo-updated', (data) => {
         if (data) {
           this.updateAmmo(data.currentRounds, data.maxRounds, data.isReloading);
+        }
+      });
+
+      this.unsubscribeHealth = eventBus.subscribe('game:health-updated', (data) => {
+        if (data && typeof data.health === 'number') {
+          this.updateHealth(data.health, data.maxHealth || 100);
         }
       });
 
@@ -319,6 +378,37 @@ export class GameView {
         if (this.timerIcon) this.timerIcon.textContent = '⏳';
       } else {
         if (this.timerIcon) this.timerIcon.textContent = '⏱️';
+      }
+    }
+  }
+
+  /**
+   * Update the player health indicator on the HUD.
+   *
+   * @param {number} currentHealth - Current player health value.
+   * @param {number} [maxHealth=100] - Maximum possible health.
+   */
+  updateHealth(currentHealth, maxHealth = 100) {
+    if (!this.healthBarFill || !this.healthLabel) {
+      return;
+    }
+
+    const safeMax = Math.max(1, Number(maxHealth) || 100);
+    const safeCurrent = Math.max(0, Math.min(Number(currentHealth) || 0, safeMax));
+    const percentage = Math.round((safeCurrent / safeMax) * 100);
+
+    if (this.healthBarFill.style) {
+      this.healthBarFill.style.width = `${percentage}%`;
+    }
+    this.healthLabel.textContent = `${percentage}%`;
+
+    if (this.healthBox) {
+      this.healthBox.setAttribute('aria-label', `Salud del jugador: ${percentage}%`);
+      this.healthBox.classList.remove('hud-health--critical', 'hud-health--warning');
+      if (percentage <= 25) {
+        this.healthBox.classList.add('hud-health--critical');
+      } else if (percentage <= 50) {
+        this.healthBox.classList.add('hud-health--warning');
       }
     }
   }
@@ -437,6 +527,11 @@ export class GameView {
     if (typeof this.unsubscribeAmmo === 'function') {
       this.unsubscribeAmmo();
       this.unsubscribeAmmo = null;
+    }
+
+    if (typeof this.unsubscribeHealth === 'function') {
+      this.unsubscribeHealth();
+      this.unsubscribeHealth = null;
     }
 
     if (typeof this.unsubscribeMute === 'function') {

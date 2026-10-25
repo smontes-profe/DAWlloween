@@ -52,7 +52,11 @@ function createMockDom() {
       if (selector === '.screamer-view__video' && this.innerHTML.includes('screamer-view__video')) {
         const el = new MockElement('video');
         el.className = 'screamer-view__video';
-        el.play = () => Promise.resolve();
+        el.play = () => {
+          const playListeners = el.listeners.get('play') || [];
+          playListeners.forEach((fn) => fn());
+          return Promise.resolve();
+        };
         el.pause = () => {};
         el.load = () => {};
         return el;
@@ -156,13 +160,13 @@ describe('ScreamerView Unit Tests (US2.1 / T3)', () => {
     assert.strictEqual(view.videoElement.volume, 1.0);
   });
 
-  it('should set an auto-transition timer to #register for ~3.0s exposure', () => {
+  it('should set an auto-transition timer to #register for ~6.0s exposure', () => {
     const { mockWindow, container } = createMockDom();
     global.window = mockWindow;
 
     view.mount(container);
 
-    assert.ok(mockWindow._lastDelay >= 2500 && mockWindow._lastDelay <= 3500);
+    assert.ok(mockWindow._lastDelay >= 5500 && mockWindow._lastDelay <= 6500);
     assert.strictEqual(mockWindow.location.hash, '#screamer');
 
     let transitionEventPublished = false;

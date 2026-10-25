@@ -10,22 +10,75 @@
 import { eventBus } from '../utils/eventBus.js';
 
 /**
- * Duration in milliseconds before auto-transitioning to #register.
- * Set to 3000ms (~3 seconds) to allow the active game and ambient experience to continue running during the jumpscare sequence.
+ * Duration in milliseconds for jumpscare scare exposure before auto-transitioning to #register.
+ * Set to 6000ms (6 seconds) as per PM directive to allow continuous gameplay and reaction recording.
  * @constant {number}
  */
-const DEFAULT_SCREAMER_DURATION_MS = 3000;
+export const DEFAULT_SCREAMER_DURATION_MS = 6000;
+
+/**
+ * Emergency safety fallback duration in milliseconds.
+ * Prevents premature transition while video is buffering over network,
+ * while guaranteeing transition to #register even if decoding completely halts.
+ * @constant {number}
+ */
+export const DEFAULT_SAFETY_FALLBACK_TIMEOUT_MS = 12000;
+
+/**
+ * Buffering threshold in milliseconds before automatically engaging the SVG monster fallback.
+ * @constant {number}
+ */
+export const BUFFERING_FALLBACK_THRESHOLD_MS = 3500;
 
 /**
  * Default video path for the jumpscare video asset.
  * @constant {string}
  */
-const JUMPSCARE_VIDEO_PATH = './assets/jumpscare.mp4';
+export const JUMPSCARE_VIDEO_PATH = './assets/jumpscare.mp4';
 
 /**
  * ScreamerView component handling the climactic jumpscare shock sequence.
  */
 export class ScreamerView {
+  /**
+   * Cached preloaded HTMLVideoElement reference.
+   * @type {HTMLVideoElement|null}
+   * @private
+   */
+  static _preloadedVideo = null;
+
+  /**
+   * Preloads the jumpscare video asset into the browser cache.
+   * Can be safely called during WelcomeView or GameView mounting to avoid buffering latency.
+   *
+   * @returns {HTMLVideoElement|null} The preloaded video element.
+   */
+  static preload() {
+    if (typeof document === 'undefined' || typeof document.createElement !== 'function') {
+      return null;
+    }
+    try {
+      if (ScreamerView._preloadedVideo) {
+        return ScreamerView._preloadedVideo;
+      }
+      const preloadedVideo = document.createElement('video');
+      preloadedVideo.src = JUMPSCARE_VIDEO_PATH;
+      preloadedVideo.preload = 'auto';
+      preloadedVideo.muted = true;
+      if (typeof preloadedVideo.setAttribute === 'function') {
+        preloadedVideo.setAttribute('playsinline', '');
+      }
+      if (typeof preloadedVideo.load === 'function') {
+        preloadedVideo.load();
+      }
+      ScreamerView._preloadedVideo = preloadedVideo;
+      return preloadedVideo;
+    } catch (err) {
+      console.warn('[ScreamerView] Video preloading failed gracefully:', err);
+      return null;
+    }
+  }
+
   /**
    * Initialises the ScreamerView instance.
    */
@@ -47,6 +100,9 @@ export class ScreamerView {
 
     /** @type {number|null} */
     this.transitionTimeoutId = null;
+
+    /** @type {number|null} */
+    this.bufferingFallbackTimeoutId = null;
 
     /** @type {number|null} */
     this.animationFrameId = null;
@@ -103,6 +159,11 @@ export class ScreamerView {
     // Render transparent shock DOM structure over the active game view
     this.container.innerHTML = this.template();
 
+    // Publish procedural scream audio trigger on EventBus so scream sound starts immediately
+    if (eventBus && typeof eventBus.publish === 'function') {
+      eventBus.publish('screamer:play-sound');
+    }
+
     // Bind accessibility keyboard skip (Escape / Space / Enter)
     this.boundKeyDownHandler = (event) => {
       if (['Escape', ' ', 'Enter'].includes(event.key)) {
@@ -123,13 +184,14 @@ export class ScreamerView {
       viewElement.addEventListener('click', this.boundClickHandler);
     }
 
-    // Initialise Chroma-Key video pipeline
-    this.initialiseVideoChroma();
-
-    // Safety fallback timer if video never ends or fails silently
+    // Emergency safety fallback timer: ensures navigation to #register
+    // occurs if video decoding or network completely stalls without triggering error
     this.transitionTimeoutId = window.setTimeout(() => {
       this.transitionToRegister();
-    }, DEFAULT_SCREAMER_DURATION_MS);
+    }, DEFAULT_SAFETY_FALLBACK_TIMEOUT_MS);
+
+    // Initialise Chroma-Key video pipeline
+    this.initialiseVideoChroma();
   }
 
   /**
@@ -160,18 +222,33 @@ export class ScreamerView {
     // Video error handler -> fallback to SVG animation
     this.boundVideoErrorHandler = () => {
       console.warn('[ScreamerView] Jumpscare video unavailable or decoding failed. Falling back to SVG animation.');
+      if (this.bufferingFallbackTimeoutId !== null && typeof window !== 'undefined') {
+        window.clearTimeout(this.bufferingFallbackTimeoutId);
+        this.bufferingFallbackTimeoutId = null;
+      }
       if (monsterSvg) {
         monsterSvg.classList.remove('screamer-view__monster--hidden');
       }
       if (this.chromaCanvas) {
         this.chromaCanvas.style.display = 'none';
       }
+      // Guarantee full 3.0s exposure on SVG fallback
+      if (this.transitionTimeoutId !== null && typeof window !== 'undefined') {
+        window.clearTimeout(this.transitionTimeoutId);
+      }
+      this.transitionTimeoutId = window.setTimeout(() => {
+        this.transitionToRegister();
+      }, DEFAULT_SCREAMER_DURATION_MS);
     };
     this.videoElement.addEventListener('error', this.boundVideoErrorHandler);
 
     // Video play handler -> start real-time green screen removal loop
     this.boundVideoPlayHandler = () => {
       this.isVideoActive = true;
+      if (this.bufferingFallbackTimeoutId !== null && typeof window !== 'undefined') {
+        window.clearTimeout(this.bufferingFallbackTimeoutId);
+        this.bufferingFallbackTimeoutId = null;
+      }
       if (monsterSvg) {
         monsterSvg.classList.add('screamer-view__monster--hidden');
       }
@@ -180,7 +257,7 @@ export class ScreamerView {
       }
 
       // Set transition timeout to 3.0s as per PM specification
-      if (this.transitionTimeoutId !== null) {
+      if (this.transitionTimeoutId !== null && typeof window !== 'undefined') {
         window.clearTimeout(this.transitionTimeoutId);
       }
       this.transitionTimeoutId = window.setTimeout(() => {
@@ -191,9 +268,20 @@ export class ScreamerView {
     };
     this.videoElement.addEventListener('play', this.boundVideoPlayHandler);
 
+    // Buffering guard: if video does not begin playing within threshold, engage SVG fallback
+    this.bufferingFallbackTimeoutId = window.setTimeout(() => {
+      if (!this.isVideoActive) {
+        console.warn('[ScreamerView] Video buffering exceeded threshold. Engaging SVG fallback.');
+        if (this.boundVideoErrorHandler) {
+          this.boundVideoErrorHandler();
+        }
+      }
+    }, BUFFERING_FALLBACK_THRESHOLD_MS);
+
     // Configure audio & source
     this.videoElement.muted = false;
     this.videoElement.volume = 1.0;
+    this.videoElement.loop = true;
     this.videoElement.src = JUMPSCARE_VIDEO_PATH;
     this.videoElement.load();
 
@@ -204,7 +292,12 @@ export class ScreamerView {
         // Fallback: if browser blocks unmuted autoplay, mute and play so visual still triggers
         if (this.videoElement) {
           this.videoElement.muted = true;
-          this.videoElement.play().catch(() => {});
+          this.videoElement.play().catch(() => {
+            // If even muted play fails, engage SVG monster fallback
+            if (this.boundVideoErrorHandler) {
+              this.boundVideoErrorHandler();
+            }
+          });
         }
       });
     }
@@ -291,6 +384,11 @@ export class ScreamerView {
       this.transitionTimeoutId = null;
     }
 
+    if (this.bufferingFallbackTimeoutId !== null && typeof window !== 'undefined') {
+      window.clearTimeout(this.bufferingFallbackTimeoutId);
+      this.bufferingFallbackTimeoutId = null;
+    }
+
     if (this.videoElement) {
       try {
         this.videoElement.pause();
@@ -329,6 +427,11 @@ export class ScreamerView {
     if (this.transitionTimeoutId !== null && typeof window !== 'undefined') {
       window.clearTimeout(this.transitionTimeoutId);
       this.transitionTimeoutId = null;
+    }
+
+    if (this.bufferingFallbackTimeoutId !== null && typeof window !== 'undefined') {
+      window.clearTimeout(this.bufferingFallbackTimeoutId);
+      this.bufferingFallbackTimeoutId = null;
     }
 
     if (this.boundKeyDownHandler && typeof window !== 'undefined') {

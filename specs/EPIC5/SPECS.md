@@ -27,9 +27,9 @@ Code entities, functions, comments, docstrings, and tests strictly remain in **U
 - **Story**: **As a** player engaged in the decoy survival game, **I want** my health and ammunition status displayed unobtrusively in the top-left corner with no visible countdown clock, and for the jumpscare to trigger immediately if I am defeated, **so I can** stay focused on survival without suspecting a scripted scare and still experience the surprise climax even if I perish early.
 - **Acceptance Criteria**:
   - Hide or remove the visual countdown timer element from the Game HUD.
-  - Internal climax timer (30–60s) continues operating in background as a secondary guarantee.
   - Position the player health indicator and ammunition cylinder in the top-left corner of the viewport/HUD with adequate contrast and spacing.
   - When player health drops to zero (`isAlive = false`), immediately halt the gameplay loop, cancel the secondary timer, and publish the `game:trigger-screamer` event to transition into the jumpscare sequence.
+  - Preload the jumpscare video asset (`assets/jumpscare.mp4`) during gameplay or view mount to prevent buffering delay, adjust safety fallback timeouts so the scare cannot be prematurely skipped before playback, and harmonise webcam recording duration with the scare climax.
 
 ### US5.3: Optimización del Hall of Fame (2 Vídeos por Fila en Móvil & IntersectionObserver)
 - **Story**: **As a** student browsing the Hall of Fame from a smartphone, **I want** to see a compact 2-column reaction grid and have off-screen videos pause automatically, **so I can** browse reactions smoothly without overwhelming device hardware or battery.
