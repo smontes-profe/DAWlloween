@@ -117,6 +117,9 @@ export class HallOfFameView {
 
     /** @type {((event: Event) => void)|null} */
     this.boundRefreshHandler = null;
+
+    /** @type {IntersectionObserver|null} */
+    this.videoObserver = null;
   }
 
   /**
@@ -342,6 +345,7 @@ export class HallOfFameView {
           gridContainer.innerHTML = this.renderEmptyState();
         } else {
           gridContainer.innerHTML = this.reactions.map((r) => this.renderReactionCard(r)).join('');
+          this.setupVideoIntersectionObserver();
         }
       }
 
@@ -449,9 +453,75 @@ export class HallOfFameView {
   }
 
   /**
+   * Sets up an IntersectionObserver to automatically play reaction videos when
+   * scrolled into the visible viewport and pause them when scrolled out of view.
+   * Conserves GPU/CPU cycles and mobile device battery.
+   */
+  setupVideoIntersectionObserver() {
+    this.disconnectVideoObserver();
+
+    if (typeof window === 'undefined' || typeof window.IntersectionObserver !== 'function') {
+      return;
+    }
+
+    try {
+      this.videoObserver = new window.IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          const video = entry.target.querySelector('video');
+          if (!video) continue;
+
+          if (entry.isIntersecting) {
+            const playPromise = video.play();
+            if (playPromise && typeof playPromise.catch === 'function') {
+              playPromise.catch(() => {
+                // Defensive catch for browser autoplay policies
+              });
+            }
+          } else {
+            video.pause();
+          }
+        }
+      }, {
+        root: null,
+        threshold: 0.25
+      });
+
+      this.observeVideoCards();
+    } catch (err) {
+      console.warn('[HallOfFameView] IntersectionObserver initialisation failed gracefully:', err);
+    }
+  }
+
+  /**
+   * Attaches active IntersectionObserver to all rendered reaction cards containing video elements.
+   */
+  observeVideoCards() {
+    if (!this.videoObserver || !this.container) return;
+
+    const cards = this.container.querySelectorAll('.reaction-card');
+    for (const card of cards) {
+      if (card.querySelector('video')) {
+        this.videoObserver.observe(card);
+      }
+    }
+  }
+
+  /**
+   * Disconnects and releases active video IntersectionObserver.
+   */
+  disconnectVideoObserver() {
+    if (this.videoObserver) {
+      this.videoObserver.disconnect();
+      this.videoObserver = null;
+    }
+  }
+
+  /**
    * Tears down listeners and timers when view is unmounted.
    */
   destroy() {
+    this.disconnectVideoObserver();
+
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
