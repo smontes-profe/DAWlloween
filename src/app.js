@@ -12,6 +12,9 @@ import { welcomeView } from './views/welcomeView.js';
 import { gameView } from './views/gameView.js';
 import { screamerView } from './views/screamerView.js';
 import { registerView } from './views/registerView.js';
+import { HallOfFameView } from './views/hallOfFameView.js';
+
+export const hallOfFameView = new HallOfFameView();
 
 /**
  * Client-side State Router managing view transitions and component lifecycles.
@@ -292,7 +295,7 @@ export function registerApplicationRoutes(router) {
     .register('#play', gameView)
     .register('#screamer', screamerView)
     .register('#register', registerView)
-    .register('#hall-of-fame', createPlaceholderView('Hall of Fame', 'Public responsive wall showcasing survivor reactions.'));
+    .register('#hall-of-fame', hallOfFameView);
 }
 
 /**
