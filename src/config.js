@@ -47,6 +47,15 @@ export const SUPABASE_CONFIG = {
 };
 
 /**
+ * Administrator credentials for the Hall of Fame moderation panel (#admin).
+ * Configurable via environment variables with safe educational defaults.
+ */
+export const ADMIN_CONFIG = {
+  username: env.ADMIN_USERNAME || 'admin',
+  password: env.ADMIN_PASSWORD || 'dawlloween2026'
+};
+
+/**
  * Jumpscare, reaction recording, and gameplay climax timing configuration.
  * Modify `durationMs` here to adjust the jumpscare exposure, webcam recording duration,
  * and background game continuation simultaneously.

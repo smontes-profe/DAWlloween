@@ -56,6 +56,22 @@ export class MockSupabaseClient {
             publicUrl: `${baseUrl}/storage/v1/object/public/${bucket}/${path}`
           }
         };
+      },
+      remove: async (paths) => {
+        if (this._simulateRemoveFailure) {
+          return { data: null, error: new Error('Simulated cloud storage removal failure.') };
+        }
+        const bucketMap = this.storageData.get(bucket);
+        const removed = [];
+        if (bucketMap) {
+          const list = Array.isArray(paths) ? paths : [paths];
+          for (const p of list) {
+            if (bucketMap.delete(p)) {
+              removed.push({ name: p });
+            }
+          }
+        }
+        return { data: removed, error: null };
       }
     })
   };
@@ -90,6 +106,18 @@ export class MockSupabaseClient {
           const list = this.tableData.get(tableName) || [];
           return { data: list, error: null };
         }
+      }),
+      delete: () => ({
+        eq: async (column, value) => {
+          if (this._simulateDbFailure) {
+            return { data: null, error: new Error('Simulated database deletion failure.') };
+          }
+          const tableList = this.tableData.get(tableName) || [];
+          const remaining = tableList.filter((row) => row[column] !== value);
+          const deleted = tableList.filter((row) => row[column] === value);
+          this.tableData.set(tableName, remaining);
+          return { data: deleted, error: null };
+        }
       })
     };
   }
@@ -102,6 +130,7 @@ export class MockSupabaseClient {
     this.tableData.clear();
     this._simulateUploadFailure = false;
     this._simulateDbFailure = false;
+    this._simulateRemoveFailure = false;
   }
 }
 
@@ -409,6 +438,138 @@ export class SupabaseService {
   }
 
   /**
+   * Deletes one or more media files from Supabase Storage bucket.
+   * Leverages automatic exponential retry resilience.
+   *
+   * @param {string|Array<string>} filePaths - File path(s) within the bucket.
+   * @param {Object} [options={}] - Options.
+   * @param {string} [options.bucket] - Storage bucket override (default: config.storageBucket || 'reactions').
+   * @param {boolean} [options.useRetry=true] - Whether to use retry mechanism.
+   * @param {number} [options.maxRetries] - Max retry attempts override.
+   * @param {number} [options.retryDelayMs] - Initial delay override.
+   * @returns {Promise<Array<Object>>} List of successfully deleted path records.
+   */
+  async deleteReactionMedia(filePaths, options = {}) {
+    const rawPaths = Array.isArray(filePaths) ? filePaths : [filePaths];
+    const validPaths = rawPaths.filter((p) => typeof p === 'string' && p.trim() !== '');
+
+    if (validPaths.length === 0) {
+      return [];
+    }
+
+    const bucket = options.bucket || this.config.storageBucket || 'reactions';
+    const useRetry = options.useRetry !== false;
+    const client = await this.getClient();
+
+    const removeOperation = async () => {
+      const { data, error } = await client.storage.from(bucket).remove(validPaths);
+      if (error) {
+        throw new Error(`Supabase Storage file removal failed: ${error.message}`);
+      }
+      return data || [];
+    };
+
+    if (useRetry) {
+      return await withRetry(removeOperation, {
+        maxRetries: options.maxRetries || this.config.maxRetries || 3,
+        initialDelayMs: options.retryDelayMs || this.config.retryDelayMs || 2000,
+        backoffFactor: options.retryBackoffFactor || this.config.retryBackoffFactor || 1.5
+      });
+    }
+
+    return await removeOperation();
+  }
+
+  /**
+   * Permanently deletes a reaction record from the database and purges associated media
+   * assets from Supabase Storage bucket. Emits `hall-of-fame:record-deleted` on success.
+   * Fault-tolerant: if storage asset purge fails (e.g. file missing), deletion of database
+   * row still proceeds to prevent orphaned/blocked moderation states.
+   *
+   * @param {string|number} id - Record ID to delete.
+   * @param {Object} [mediaRefs={}] - Media URLs or paths to clean up.
+   * @param {string|null} [mediaRefs.videoUrl] - Video public URL or storage path.
+   * @param {string|null} [mediaRefs.photoUrl] - Photo public URL or storage path.
+   * @param {Object} [options={}] - Options.
+   * @param {string} [options.tableName] - Custom table name override.
+   * @param {string} [options.bucket] - Custom bucket name override.
+   * @param {boolean} [options.useRetry=true] - Whether to use retry mechanism for database delete.
+   * @returns {Promise<{ id: string|number, storageDeleted: Array<Object>, storageErrors: Array<Error> }>} Result summary.
+   */
+  async deleteReactionRecord(id, { videoUrl = null, photoUrl = null } = {}, options = {}) {
+    if (!id && id !== 0) {
+      throw new Error('A valid record ID is required for deletion.');
+    }
+
+    const tableName = options.tableName || this.config.tableName || 'hall_of_fame';
+    const bucket = options.bucket || this.config.storageBucket || 'reactions';
+    const client = await this.getClient();
+
+    // 1. Resolve and purge storage assets if paths exist
+    const storagePaths = [];
+    if (videoUrl) {
+      const vPath = extractStoragePath(videoUrl, bucket);
+      if (vPath) storagePaths.push(vPath);
+    }
+    if (photoUrl) {
+      const pPath = extractStoragePath(photoUrl, bucket);
+      if (pPath) storagePaths.push(pPath);
+    }
+
+    let storageDeleted = [];
+    const storageErrors = [];
+
+    if (storagePaths.length > 0) {
+      try {
+        storageDeleted = await this.deleteReactionMedia(storagePaths, {
+          bucket,
+          useRetry: options.useRetry !== false
+        });
+      } catch (err) {
+        console.warn(`[SupabaseService] Non-fatal storage asset deletion error for record ${id}:`, err);
+        storageErrors.push(err);
+      }
+    }
+
+    // 2. Delete database row with retry resilience
+    const deleteOperation = async () => {
+      const { data, error } = await client
+        .from(tableName)
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        throw new Error(`Supabase Database row deletion failed: ${error.message}`);
+      }
+      return data;
+    };
+
+    if (options.useRetry !== false) {
+      await withRetry(deleteOperation, {
+        maxRetries: options.maxRetries || this.config.maxRetries || 3,
+        initialDelayMs: options.retryDelayMs || this.config.retryDelayMs || 2000,
+        backoffFactor: options.retryBackoffFactor || this.config.retryBackoffFactor || 1.5
+      });
+    } else {
+      await deleteOperation();
+    }
+
+    // 3. Publish reactive event via EventBus
+    eventBus.publish('hall-of-fame:record-deleted', {
+      id,
+      videoUrl,
+      photoUrl,
+      deletedAt: new Date().toISOString()
+    });
+
+    return {
+      id,
+      storageDeleted,
+      storageErrors
+    };
+  }
+
+  /**
    * Resets the service state for isolated test execution.
    */
   reset() {
@@ -486,6 +647,36 @@ export function dataUrlToBlob(dataUrl) {
     type: mimeType,
     arrayBuffer: async () => bytes.buffer
   };
+}
+
+/**
+ * Extracts the storage object path relative to the given bucket from a full Supabase URL or raw path.
+ *
+ * @param {string|null} mediaUrl - Full public URL or raw object key.
+ * @param {string} [bucket='reactions'] - Target storage bucket name.
+ * @returns {string|null} Extracted object path or null if invalid.
+ */
+export function extractStoragePath(mediaUrl, bucket = 'reactions') {
+  if (!mediaUrl || typeof mediaUrl !== 'string') {
+    return null;
+  }
+
+  const cleanUrl = mediaUrl.trim();
+  const pattern = new RegExp(`/storage/v1/object/public/${bucket}/(.+)$`);
+  const match = cleanUrl.match(pattern);
+
+  if (match && match[1]) {
+    return decodeURIComponent(match[1].split('?')[0]);
+  }
+
+  // If already a relative path / filename
+  if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+    return cleanUrl;
+  }
+
+  // Fallback: extract last segment if full external URL
+  const parts = cleanUrl.split('?')[0].split('/');
+  return parts[parts.length - 1] || null;
 }
 
 /**

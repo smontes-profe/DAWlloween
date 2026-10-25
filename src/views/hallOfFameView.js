@@ -7,7 +7,9 @@
  */
 
 import { supabaseService } from '../services/supabase.js';
+import { adminAuth } from '../services/adminAuth.js';
 import { alerts } from '../ui/alerts.js';
+import { eventBus } from '../utils/eventBus.js';
 
 /**
  * Escapes potentially dangerous characters from user-provided nicknames to prevent XSS.
@@ -83,6 +85,7 @@ export class HallOfFameView {
    * @param {Object} [options={}] - Optional dependencies for testing.
    * @param {Object} [options.supabaseService] - Injected Supabase service.
    * @param {Object} [options.alertsService] - Injected Alerts service.
+   * @param {Object} [options.authService] - Injected Admin authentication service.
    */
   constructor(options = {}) {
     /** @type {HTMLElement|null} */
@@ -99,6 +102,9 @@ export class HallOfFameView {
 
     /** @type {Object} */
     this.alerts = options.alertsService || alerts;
+
+    /** @type {Object} */
+    this.authService = options.authService || adminAuth;
 
     /** @type {number|null} */
     this.pollTimer = null;
@@ -117,6 +123,24 @@ export class HallOfFameView {
 
     /** @type {((event: Event) => void)|null} */
     this.boundRefreshHandler = null;
+
+    /** @type {((event: Event) => void)|null} */
+    this.boundAdminLogoutHandler = null;
+
+    /** @type {((event: Event) => void)|null} */
+    this.boundGridClickHandler = null;
+
+    /** @type {((event: KeyboardEvent) => void)|null} */
+    this.boundModalKeyHandler = null;
+
+    /** @type {Function|null} */
+    this.boundRecordDeletedHandler = null;
+
+    /** @type {Function|null} */
+    this.eventBusUnsubscribe = null;
+
+    /** @type {HTMLElement|null} */
+    this.activeModal = null;
 
     /** @type {IntersectionObserver|null} */
     this.videoObserver = null;
@@ -138,6 +162,16 @@ export class HallOfFameView {
 
     this.attachEventListeners();
     this.setupVisibilityDetection();
+
+    // Subscribe to reactive cloud record deletion events
+    this.boundRecordDeletedHandler = (payload) => {
+      if (payload && payload.id) {
+        this.removeReactionFromDom(payload.id);
+      }
+    };
+    if (eventBus && typeof eventBus.subscribe === 'function') {
+      this.eventBusUnsubscribe = eventBus.subscribe('hall-of-fame:record-deleted', this.boundRecordDeletedHandler);
+    }
 
     const initialRecords = await this.loadReactions();
     if (!this.container) {
@@ -219,6 +253,7 @@ export class HallOfFameView {
             <span class="hall-controls__pulse-dot" aria-hidden="true"></span>
             <span id="hall-live-indicator">Mural en vivo</span>
           </div>
+          ${this.renderAdminControls()}
           <div class="hall-controls__actions">
             <button id="btn-hall-refresh" class="btn-refresh" aria-label="Actualizar mural de reacciones">
               <span class="btn-refresh__icon" aria-hidden="true">🔄</span>
@@ -261,7 +296,27 @@ export class HallOfFameView {
   }
 
   /**
-   * Attaches interactive event listeners to buttons.
+   * Renders the administrative moderation banner if session is active.
+   *
+   * @returns {string}
+   */
+  renderAdminControls() {
+    if (!this.authService || !this.authService.isAuthenticated()) {
+      return '';
+    }
+
+    return `
+      <div class="hall-controls__admin-bar" id="hall-admin-bar">
+        <span class="admin-badge">🛡️ Modo Moderador</span>
+        <button id="btn-admin-logout" class="btn btn--secondary btn--sm" type="button" aria-label="Cerrar sesión de moderador">
+          🚪 Cerrar Sesión
+        </button>
+      </div>
+    `;
+  }
+
+  /**
+   * Attaches interactive event listeners to buttons and delegated grid actions.
    */
   attachEventListeners() {
     if (!this.container) return;
@@ -279,6 +334,35 @@ export class HallOfFameView {
     const fabBtn = this.container.querySelector('#btn-fab-refresh');
     if (fabBtn) {
       fabBtn.addEventListener('click', this.boundRefreshHandler);
+    }
+
+    const adminLogoutBtn = this.container.querySelector('#btn-admin-logout');
+    if (adminLogoutBtn) {
+      this.boundAdminLogoutHandler = (event) => {
+        event.preventDefault();
+        this.authService.logout();
+        if (this.alerts && typeof this.alerts.info === 'function') {
+          this.alerts.info('Sesión de administración cerrada.', 'Moderación', 2500);
+        }
+        this.updateAdminState();
+      };
+      adminLogoutBtn.addEventListener('click', this.boundAdminLogoutHandler);
+    }
+
+    const gridContainer = this.container.querySelector('#hall-grid-container');
+    if (gridContainer && !this.boundGridClickHandler) {
+      this.boundGridClickHandler = (event) => {
+        const deleteBtn = event.target.closest('[data-action="delete"]');
+        if (deleteBtn) {
+          event.preventDefault();
+          event.stopPropagation();
+          const id = deleteBtn.getAttribute('data-id');
+          const nickname = deleteBtn.getAttribute('data-nickname');
+          const card = deleteBtn.closest('.reaction-card');
+          this.openDeleteConfirmationModal(id, nickname, card);
+        }
+      };
+      gridContainer.addEventListener('click', this.boundGridClickHandler);
     }
   }
 
@@ -395,11 +479,20 @@ export class HallOfFameView {
       ? `<video class="reaction-card__video" src="${mediaUrl}" autoplay loop muted playsinline preload="metadata" title="Reacción de ${nickname}"></video>`
       : `<img class="reaction-card__image" src="${mediaUrl}" alt="Reacción de ${nickname}" loading="lazy" />`;
 
+    const isAdmin = Boolean(this.authService && this.authService.isAuthenticated());
+    const deleteBtnMarkup = isAdmin
+      ? `<button type="button" class="btn-reaction-delete" data-action="delete" data-id="${id}" data-nickname="${nickname}" aria-label="Eliminar reacción de ${nickname}" title="Eliminar reacción">
+           <span aria-hidden="true">🗑️</span>
+           <span>Eliminar</span>
+         </button>`
+      : '';
+
     return `
       <article class="reaction-card" data-id="${id}">
         <div class="reaction-card__media-container">
           ${mediaMarkup}
           ${badgeMarkup}
+          ${deleteBtnMarkup}
         </div>
         <div class="reaction-card__footer">
           <div class="reaction-card__nickname-row">
@@ -517,10 +610,236 @@ export class HallOfFameView {
   }
 
   /**
+   * Updates administrative UI elements reactively when auth state changes without full page reload.
+   */
+  updateAdminState() {
+    if (!this.container) return;
+
+    // Update controls navigation
+    const existingAdminBar = this.container.querySelector('#hall-admin-bar');
+    const controlsNav = this.container.querySelector('.hall-controls');
+
+    if (this.authService.isAuthenticated()) {
+      if (!existingAdminBar && controlsNav) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = this.renderAdminControls();
+        const newBar = tempDiv.firstElementChild;
+        if (newBar) {
+          const actionsDiv = controlsNav.querySelector('.hall-controls__actions');
+          controlsNav.insertBefore(newBar, actionsDiv);
+        }
+      }
+    } else {
+      if (existingAdminBar) {
+        existingAdminBar.remove();
+      }
+    }
+
+    // Update reaction cards to show or remove delete buttons
+    const gridContainer = this.container.querySelector('#hall-grid-container');
+    if (gridContainer && this.reactions.length > 0) {
+      gridContainer.innerHTML = this.reactions.map((r) => this.renderReactionCard(r)).join('');
+      this.setupVideoIntersectionObserver();
+    }
+
+    this.attachEventListeners();
+  }
+
+  /**
+   * Opens an accessible confirmation dialog modal in European Spanish before deleting a reaction.
+   *
+   * @param {string|number} id - Record ID to delete.
+   * @param {string} nickname - Participant nickname for confirmation copy.
+   * @param {HTMLElement|null} cardElement - DOM card element for reactive deletion.
+   */
+  openDeleteConfirmationModal(id, nickname, cardElement) {
+    this.closeModal();
+
+    const reaction = this.reactions.find((r) => String(r.id) === String(id));
+    const cleanNickname = sanitizeText(nickname || reaction?.nickname || 'esta persona');
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.id = 'modal-delete-backdrop';
+
+    const dialog = document.createElement('div');
+    dialog.className = 'modal-dialog panel-surface';
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'modal-delete-title');
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'modal-dialog__header';
+    const title = document.createElement('h2');
+    title.id = 'modal-delete-title';
+    title.className = 'text-display text-blood';
+    title.textContent = '¿Eliminar reacción?';
+    header.appendChild(title);
+
+    // Body
+    const body = document.createElement('div');
+    body.className = 'modal-dialog__body';
+    const question = document.createElement('p');
+    question.innerHTML = `¿Estás seguro de que deseas eliminar permanentemente la reacción de <strong>${cleanNickname}</strong>?`;
+    const notice = document.createElement('p');
+    notice.className = 'text-muted text-sm';
+    notice.textContent = 'Esta acción purgará los archivos multimedia de la nube y eliminará el registro de forma irreversible.';
+    body.appendChild(question);
+    body.appendChild(notice);
+
+    // Actions
+    const actions = document.createElement('div');
+    actions.className = 'modal-dialog__actions';
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.type = 'button';
+    confirmBtn.id = 'modal-btn-confirm';
+    confirmBtn.className = 'btn btn--danger';
+    confirmBtn.textContent = 'Eliminar Definitivamente';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.id = 'modal-btn-cancel';
+    cancelBtn.className = 'btn btn--secondary';
+    cancelBtn.textContent = 'Cancelar';
+
+    actions.appendChild(confirmBtn);
+    actions.appendChild(cancelBtn);
+
+    dialog.appendChild(header);
+    dialog.appendChild(body);
+    dialog.appendChild(actions);
+
+    backdrop.appendChild(dialog);
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.appendChild(backdrop);
+    }
+    this.activeModal = backdrop;
+
+    // Close on cancel button
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        this.closeModal();
+      });
+      if (typeof cancelBtn.focus === 'function') {
+        cancelBtn.focus();
+      }
+    }
+
+    // Close on backdrop click outside dialog
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) {
+        this.closeModal();
+      }
+    });
+
+    // Close on Escape key
+    this.boundModalKeyHandler = (e) => {
+      if (e.key === 'Escape') {
+        this.closeModal();
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('keydown', this.boundModalKeyHandler);
+    }
+
+    // Confirm deletion action
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', async () => {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<span class="btn-text">Eliminando...</span>';
+
+        try {
+          await this.service.deleteReactionRecord(id, {
+            videoUrl: reaction?.video_url,
+            photoUrl: reaction?.photo_url
+          });
+
+          this.closeModal();
+          this.removeReactionFromDom(id, cardElement);
+          if (this.alerts && typeof this.alerts.success === 'function') {
+            this.alerts.success('Reacción eliminada permanentemente.', 'Moderación', 3000);
+          }
+        } catch (err) {
+          console.error('[HallOfFameView] Error deleting reaction record:', err);
+          confirmBtn.disabled = false;
+          confirmBtn.innerHTML = '<span class="btn-text">Reintentar Eliminación</span>';
+          if (this.alerts && typeof this.alerts.error === 'function') {
+            this.alerts.error('No se pudo eliminar la reacción. Comprueba la conexión.', 'Error de Moderación', 4000);
+          }
+        }
+      });
+    }
+  }
+
+  /**
+   * Closes and removes the confirmation modal dialog.
+   */
+  closeModal() {
+    if (this.boundModalKeyHandler && typeof document !== 'undefined') {
+      document.removeEventListener('keydown', this.boundModalKeyHandler);
+      this.boundModalKeyHandler = null;
+    }
+
+    if (this.activeModal) {
+      if (typeof this.activeModal.remove === 'function') {
+        this.activeModal.remove();
+      } else if (this.activeModal.parentNode) {
+        this.activeModal.parentNode.removeChild(this.activeModal);
+      }
+      this.activeModal = null;
+    }
+  }
+
+  /**
+   * Removes a reaction card from the live DOM and updates badge statistics.
+   *
+   * @param {string|number} id - Record ID.
+   * @param {HTMLElement|null} [cardElement] - Optional card element reference.
+   */
+  removeReactionFromDom(id, cardElement = null) {
+    const targetCard = cardElement || (this.container && this.container.querySelector(`.reaction-card[data-id="${id}"]`));
+    if (targetCard) {
+      if (typeof targetCard.remove === 'function') {
+        targetCard.remove();
+      } else if (targetCard.parentNode) {
+        targetCard.parentNode.removeChild(targetCard);
+      }
+    }
+
+    this.reactions = this.reactions.filter((r) => String(r.id) !== String(id));
+    this.knownReactionIds.delete(id);
+
+    const badge = this.container ? this.container.querySelector('#hall-count-badge') : null;
+    if (badge) {
+      badge.textContent = `${this.reactions.length} Alma${this.reactions.length === 1 ? '' : 's'} Inmortalizada${this.reactions.length === 1 ? '' : 's'}`;
+    }
+
+    const gridContainer = this.container ? this.container.querySelector('#hall-grid-container') : null;
+    if (gridContainer && this.reactions.length === 0) {
+      gridContainer.innerHTML = this.renderEmptyState();
+    }
+  }
+
+  /**
+   * Alias for destroy lifecycle method for router compatibility.
+   */
+  unmount() {
+    this.destroy();
+  }
+
+  /**
    * Tears down listeners and timers when view is unmounted.
    */
   destroy() {
     this.disconnectVideoObserver();
+    this.closeModal();
+
+    if (this.eventBusUnsubscribe) {
+      this.eventBusUnsubscribe();
+      this.eventBusUnsubscribe = null;
+    }
 
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
@@ -543,8 +862,23 @@ export class HallOfFameView {
         fabBtn.removeEventListener('click', this.boundRefreshHandler);
       }
 
+      const adminLogoutBtn = this.container.querySelector('#btn-admin-logout');
+      if (adminLogoutBtn && this.boundAdminLogoutHandler) {
+        adminLogoutBtn.removeEventListener('click', this.boundAdminLogoutHandler);
+      }
+
+      const gridContainer = this.container.querySelector('#hall-grid-container');
+      if (gridContainer && this.boundGridClickHandler) {
+        gridContainer.removeEventListener('click', this.boundGridClickHandler);
+      }
+
       this.container = null;
     }
+
+    this.boundRefreshHandler = null;
+    this.boundAdminLogoutHandler = null;
+    this.boundGridClickHandler = null;
+    this.boundRecordDeletedHandler = null;
   }
 }
 

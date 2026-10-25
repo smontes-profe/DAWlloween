@@ -251,5 +251,6 @@ describe('Router Unit Tests', () => {
     assert.equal(router.routes.has('#screamer'), true);
     assert.equal(router.routes.has('#register'), true);
     assert.equal(router.routes.has('#hall-of-fame'), true);
+    assert.equal(router.routes.has('#admin'), true);
   });
 });

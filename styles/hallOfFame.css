@@ -467,3 +467,158 @@
     transform: translateY(-10px);
   }
 }
+
+/* --------------------------------------------------------------------------
+   10. Moderator Admin Mode & Delete Modal Styles (US6.1 / T2)
+   -------------------------------------------------------------------------- */
+.hall-controls__admin-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 4px 10px;
+  background: rgba(40, 252, 116, 0.08);
+  border: 1px solid var(--colour-ectoplasm-dim);
+  border-radius: var(--radius-full);
+}
+
+.hall-controls__admin-bar .admin-badge {
+  margin-bottom: 0;
+  padding: 2px 8px;
+  font-size: var(--font-size-xs);
+  border: none;
+  background: transparent;
+}
+
+.btn-reaction-delete {
+  position: absolute;
+  top: var(--space-xs);
+  right: var(--space-xs);
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background-color: rgba(7, 5, 10, 0.85);
+  border: 1px solid var(--colour-blood-red);
+  border-radius: var(--radius-sm);
+  color: #ff8597;
+  font-family: var(--font-family-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  backdrop-filter: blur(4px);
+}
+
+.btn-reaction-delete:hover {
+  background-color: var(--colour-blood-red);
+  color: #ffffff;
+  box-shadow: 0 0 12px var(--colour-blood-glow);
+  transform: scale(1.05);
+}
+
+.reaction-card--removing {
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  pointer-events: none;
+}
+
+/* Confirmation Modal Backdrop & Dialog */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background-color: rgba(7, 5, 10, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+  animation: modalFadeIn 0.25s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-dialog {
+  width: 100%;
+  max-width: 480px;
+  background-color: var(--colour-bg-surface);
+  border: 1px solid var(--colour-blood-red);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8), 0 0 24px var(--colour-blood-glow);
+  padding: var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  position: relative;
+  animation: modalSlideUp 0.25s ease-out;
+}
+
+@keyframes modalSlideUp {
+  from {
+    transform: translateY(20px) scale(0.96);
+  }
+  to {
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-dialog__header h2 {
+  font-size: var(--font-size-title);
+  color: var(--colour-blood-red);
+  margin: 0;
+}
+
+.modal-dialog__body {
+  font-size: var(--font-size-body);
+  color: var(--colour-text-secondary);
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.modal-dialog__actions {
+  display: flex;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+}
+
+.modal-dialog__actions .btn {
+  flex: 1;
+  justify-content: center;
+}
+
+.btn--danger {
+  background-color: var(--colour-blood-red);
+  color: #ffffff;
+  border: 1px solid var(--colour-blood-red);
+  box-shadow: 0 0 16px var(--colour-blood-glow);
+  cursor: pointer;
+}
+
+.btn--danger:hover:not(:disabled) {
+  background-color: #ff3355;
+  box-shadow: 0 0 24px var(--colour-blood-glow);
+}
+
+.btn--danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn--sm {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  min-height: auto;
+}
+

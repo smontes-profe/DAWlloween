@@ -13,6 +13,7 @@ import { gameView } from './views/gameView.js';
 import { screamerView } from './views/screamerView.js';
 import { registerView } from './views/registerView.js';
 import { HallOfFameView } from './views/hallOfFameView.js';
+import { adminView } from './views/adminView.js';
 
 export const hallOfFameView = new HallOfFameView();
 
@@ -295,7 +296,8 @@ export function registerApplicationRoutes(router) {
     .register('#play', gameView)
     .register('#screamer', screamerView)
     .register('#register', registerView)
-    .register('#hall-of-fame', hallOfFameView);
+    .register('#hall-of-fame', hallOfFameView)
+    .register('#admin', adminView);
 }
 
 /**

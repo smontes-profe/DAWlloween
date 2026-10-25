@@ -1,0 +1,157 @@
+/* ==========================================================================
+   DAWlloween - Administrator Moderation View Stylesheet
+   Standards: UK English naming conventions, fluid CSS clamp(), accessible focus.
+   ========================================================================== */
+
+.admin-view {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 160px);
+  padding: var(--space-xl) var(--space-md);
+  animation: fadeInAdmin 0.4s ease-out;
+}
+
+@keyframes fadeInAdmin {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-card {
+  width: 100%;
+  max-width: 520px;
+  background-color: var(--colour-bg-surface);
+  border: 1px solid var(--colour-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  box-shadow: 0 12px 36px rgba(7, 5, 10, 0.7),
+              0 0 20px var(--colour-pumpkin-glow);
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--colour-pumpkin), var(--colour-spectral-purple), var(--colour-pumpkin));
+}
+
+.admin-card__header {
+  text-align: center;
+  margin-bottom: var(--space-lg);
+}
+
+.admin-card__header .text-display {
+  font-size: var(--font-size-title);
+  margin-top: var(--space-xs);
+  margin-bottom: var(--space-xs);
+}
+
+.admin-card__description {
+  font-size: var(--font-size-body);
+  color: var(--colour-text-secondary);
+  line-height: 1.5;
+}
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 4px 12px;
+  background-color: rgba(40, 252, 116, 0.12);
+  border: 1px solid var(--colour-ectoplasm-dim);
+  border-radius: var(--radius-full);
+  color: var(--colour-ectoplasm);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-sm);
+}
+
+.admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.admin-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.admin-form .form-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--colour-text-primary);
+  letter-spacing: 0.02em;
+}
+
+.admin-form .form-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: var(--colour-bg-midnight);
+  border: 1px solid var(--colour-border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--colour-text-primary);
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-body);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.admin-form .form-input:focus {
+  outline: none;
+  border-color: var(--colour-pumpkin);
+  box-shadow: 0 0 0 3px var(--colour-pumpkin-glow);
+}
+
+.admin-feedback {
+  min-height: 1.5rem;
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-fast);
+}
+
+.admin-feedback--error {
+  padding: var(--space-xs) var(--space-sm);
+  background-color: rgba(255, 30, 66, 0.12);
+  border: 1px solid var(--colour-blood-red);
+  border-radius: var(--radius-sm);
+  color: #ff8597;
+  font-weight: 500;
+}
+
+.admin-form__actions,
+.admin-card__actions {
+  display: flex;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+}
+
+.admin-form__actions .btn,
+.admin-card__actions .btn {
+  flex: 1;
+  text-align: center;
+  justify-content: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .admin-card {
+    padding: var(--space-lg);
+  }
+
+  .admin-form__actions,
+  .admin-card__actions {
+    flex-direction: column;
+  }
+}
