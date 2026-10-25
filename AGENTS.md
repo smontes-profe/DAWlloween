@@ -197,5 +197,9 @@ Review phase:
    - Maintain a cohesive, immersive aesthetic (deep dark palette, pumpkin orange, ghost green, eerie purple, atmospheric micro-animations and typography).
 7. **Code Language Standards (UK English)**:
    - All code entities (variables, functions, classes, constants), code comments, docstrings, commit messages, and internal identifiers must be strictly written in **UK English (`en-GB`)** (e.g., `initialise`, `colour`, `synchronise`, `optimise`).
+8. **User-Facing Interface Language (European Spanish / `es-ES`)**:
+   - All user-facing content, gameplay UI, HUD labels, dialogues, instructions, button copy, modal texts, and notification toasts must be strictly written in natural **European Spanish (`es-ES`)** (castellano de España), respecting proper orthographic accents (tildes), punctuation, and tone appropriate for DAW students.
+   - User-facing text must never be drafted in English.
+   - Code internals, identifiers, tests, and comments remain strictly in **UK English (`en-GB`)** as per rule 7.
 
 
