@@ -47,6 +47,31 @@ export const SUPABASE_CONFIG = {
 };
 
 /**
+ * Jumpscare, reaction recording, and gameplay climax timing configuration.
+ * Modify `durationMs` here to adjust the jumpscare exposure, webcam recording duration,
+ * and background game continuation simultaneously.
+ */
+export const SCREAMER_CONFIG = {
+  /**
+   * Total exposure duration of the jumpscare shock in milliseconds.
+   * Both the webcam reaction recording and background minigame continuation match this value.
+   * Default: 3000ms (3.0 seconds).
+   */
+  durationMs: 3500,
+
+  /**
+   * Emergency safety fallback timeout in milliseconds.
+   * Guarantees transition to #register even if network or video decoding completely stalls.
+   */
+  safetyFallbackTimeoutMs: 10000,
+
+  /**
+   * Threshold before engaging SVG fallback if video buffering takes too long in milliseconds.
+   */
+  bufferingFallbackThresholdMs: 3500
+};
+
+/**
  * Validates whether Supabase credentials have been explicitly configured with non-placeholder values.
  *
  * @param {typeof SUPABASE_CONFIG} [config=SUPABASE_CONFIG] - Configuration object to validate.

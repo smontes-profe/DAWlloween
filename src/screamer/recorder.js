@@ -10,13 +10,14 @@
 import { cameraService } from './camera.js';
 import { captureService } from './capture.js';
 import { eventBus } from '../utils/eventBus.js';
+import { SCREAMER_CONFIG } from '../config.js';
 
 /**
  * Default duration in milliseconds for reaction clip recording.
- * Calibrated to 6000ms to synchronise with the 6-second jumpscare and continuous gameplay duration.
+ * Sourced centrally from SCREAMER_CONFIG in src/config.js.
  * @constant {number}
  */
-export const DEFAULT_RECORDING_DURATION_MS = 6000;
+export const DEFAULT_RECORDING_DURATION_MS = SCREAMER_CONFIG.durationMs;
 
 /**
  * Detects the best supported video MIME type in the current client browser environment.

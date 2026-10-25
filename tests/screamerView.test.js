@@ -6,7 +6,7 @@
 
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { ScreamerView } from '../src/views/screamerView.js';
+import { ScreamerView, DEFAULT_SCREAMER_DURATION_MS } from '../src/views/screamerView.js';
 import { audioService } from '../src/services/audio.js';
 import { eventBus } from '../src/utils/eventBus.js';
 
@@ -160,13 +160,13 @@ describe('ScreamerView Unit Tests (US2.1 / T3)', () => {
     assert.strictEqual(view.videoElement.volume, 1.0);
   });
 
-  it('should set an auto-transition timer to #register for ~6.0s exposure', () => {
+  it('should set an auto-transition timer to #register matching DEFAULT_SCREAMER_DURATION_MS exposure', () => {
     const { mockWindow, container } = createMockDom();
     global.window = mockWindow;
 
     view.mount(container);
 
-    assert.ok(mockWindow._lastDelay >= 5500 && mockWindow._lastDelay <= 6500);
+    assert.strictEqual(mockWindow._lastDelay, DEFAULT_SCREAMER_DURATION_MS);
     assert.strictEqual(mockWindow.location.hash, '#screamer');
 
     let transitionEventPublished = false;

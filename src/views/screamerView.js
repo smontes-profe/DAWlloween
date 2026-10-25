@@ -8,27 +8,28 @@
  */
 
 import { eventBus } from '../utils/eventBus.js';
+import { SCREAMER_CONFIG } from '../config.js';
 
 /**
  * Duration in milliseconds for jumpscare scare exposure before auto-transitioning to #register.
- * Set to 6000ms (6 seconds) as per PM directive to allow continuous gameplay and reaction recording.
+ * Sourced centrally from SCREAMER_CONFIG in src/config.js.
  * @constant {number}
  */
-export const DEFAULT_SCREAMER_DURATION_MS = 6000;
+export const DEFAULT_SCREAMER_DURATION_MS = SCREAMER_CONFIG.durationMs;
 
 /**
  * Emergency safety fallback duration in milliseconds.
- * Prevents premature transition while video is buffering over network,
- * while guaranteeing transition to #register even if decoding completely halts.
+ * Sourced centrally from SCREAMER_CONFIG in src/config.js.
  * @constant {number}
  */
-export const DEFAULT_SAFETY_FALLBACK_TIMEOUT_MS = 12000;
+export const DEFAULT_SAFETY_FALLBACK_TIMEOUT_MS = SCREAMER_CONFIG.safetyFallbackTimeoutMs;
 
 /**
  * Buffering threshold in milliseconds before automatically engaging the SVG monster fallback.
+ * Sourced centrally from SCREAMER_CONFIG in src/config.js.
  * @constant {number}
  */
-export const BUFFERING_FALLBACK_THRESHOLD_MS = 3500;
+export const BUFFERING_FALLBACK_THRESHOLD_MS = SCREAMER_CONFIG.bufferingFallbackThresholdMs;
 
 /**
  * Default video path for the jumpscare video asset.
@@ -159,10 +160,7 @@ export class ScreamerView {
     // Render transparent shock DOM structure over the active game view
     this.container.innerHTML = this.template();
 
-    // Publish procedural scream audio trigger on EventBus so scream sound starts immediately
-    if (eventBus && typeof eventBus.publish === 'function') {
-      eventBus.publish('screamer:play-sound');
-    }
+
 
     // Bind accessibility keyboard skip (Escape / Space / Enter)
     this.boundKeyDownHandler = (event) => {

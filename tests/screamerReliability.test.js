@@ -14,6 +14,7 @@ import {
   BUFFERING_FALLBACK_THRESHOLD_MS
 } from '../src/views/screamerView.js';
 import { DEFAULT_RECORDING_DURATION_MS } from '../src/screamer/recorder.js';
+import { SCREAMER_CONFIG } from '../src/config.js';
 import { eventBus } from '../src/utils/eventBus.js';
 
 class MockElement {
@@ -205,7 +206,7 @@ describe('Jumpscare Activation Reliability Unit Tests (US5.2 / T1)', () => {
     assert.strictEqual(cached, preloaded);
   });
 
-  it('should publish screamer:play-sound event on EventBus upon mounting', () => {
+  it('should not publish artificial screamer:play-sound event on EventBus to avoid spoiler cues', () => {
     const { mockWindow, container } = createReliabilityDom();
     global.window = mockWindow;
 
@@ -216,7 +217,7 @@ describe('Jumpscare Activation Reliability Unit Tests (US5.2 / T1)', () => {
 
     try {
       view.mount(container);
-      assert.strictEqual(soundEventFired, true);
+      assert.strictEqual(soundEventFired, false);
     } finally {
       unsub();
     }
@@ -294,8 +295,8 @@ describe('Jumpscare Activation Reliability Unit Tests (US5.2 / T1)', () => {
     assert.strictEqual(errorExposure.delay, DEFAULT_SCREAMER_DURATION_MS);
   });
 
-  it('should calibrate default webcam reaction recording duration to 6000ms', () => {
-    assert.strictEqual(DEFAULT_RECORDING_DURATION_MS, 6000);
+  it('should calibrate default webcam reaction recording duration to match SCREAMER_CONFIG.durationMs', () => {
+    assert.strictEqual(DEFAULT_RECORDING_DURATION_MS, SCREAMER_CONFIG.durationMs);
   });
 
   it('should cleanly cancel both transition and buffering timeouts on unmount()', () => {

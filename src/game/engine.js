@@ -10,6 +10,7 @@
 import { EntityFactory, Player } from './entities.js';
 import { Weapon } from './weapon.js';
 import { eventBus } from '../utils/eventBus.js';
+import { SCREAMER_CONFIG } from '../config.js';
 
 /**
  * Game engine lifecycle states.
@@ -843,13 +844,13 @@ export class GameEngine {
   /**
    * Triggers the game climax jumpscare sequence. Emits decoupled game:trigger-screamer event
    * while allowing the game loop, physics, input, and rendering to continue seamlessly
-   * for approximately 6 seconds during the scare before halting simulation.
+   * during the scare exposure before halting simulation.
    *
    * @param {string} [reason='timer_expired'] - Reason for climax ('timer_expired' or 'player_defeat').
-   * @param {number} [haltDelayMs=6000] - Milliseconds to let the game continue running before halting.
+   * @param {number} [haltDelayMs=SCREAMER_CONFIG.durationMs] - Milliseconds to let the game continue running before halting.
    * @returns {Object|null} Published screamer payload, or null if already triggered.
    */
-  triggerClimax(reason = 'timer_expired', haltDelayMs = 6000) {
+  triggerClimax(reason = 'timer_expired', haltDelayMs = SCREAMER_CONFIG.durationMs) {
     if (this.isClimaxTriggered) {
       return null;
     }
