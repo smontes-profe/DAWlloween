@@ -343,6 +343,41 @@ describe('RegisterView Component Unit Tests (US2.3 / T5, T6)', () => {
     assert.strictEqual(view.snapshotDataUrl, null);
   });
 
+  it('should display loading frame when recorder is pending and reactively swap to video when screamer:video-recorded is published', () => {
+    const { mockWindow, container } = createMockDom();
+    global.window = mockWindow;
+
+    // Simulate recorder in pending state
+    recorderService.isRecording = false;
+    recorderService.isProcessing = true;
+
+    try {
+      view.mount(container);
+
+      // Verify initial loading state inside polaroid card
+      assert.ok(container.innerHTML.includes('id="reaction-loading-preview"'));
+      assert.ok(container.innerHTML.includes('Inmortalizando tu terror...'));
+      assert.ok(container.innerHTML.includes('polaroid-card__badge--processing'));
+
+      // Publish screamer:video-recorded
+      eventBus.publish('screamer:video-recorded', {
+        url: 'blob:http://localhost:3000/scare-async-uuid',
+        isFallback: false,
+        durationMs: 3000
+      });
+
+      // Verify Polaroid card seamlessly updated to video element
+      const photoFrame = container.querySelector('.polaroid-card__photo-frame');
+      const badge = container.querySelector('#photo-status-badge');
+      assert.ok(photoFrame && photoFrame.innerHTML.includes('id="reaction-video-preview"'));
+      assert.ok(badge && badge.textContent.includes('🎬 Vídeo Reacción'));
+      assert.ok(badge && badge.className.includes('polaroid-card__badge--video'));
+    } finally {
+      recorderService.isProcessing = false;
+      view.unmount();
+    }
+  });
+
   it('should export singleton instance registerView and register #register in Router', () => {
     assert.ok(registerView instanceof RegisterView);
 

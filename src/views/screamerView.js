@@ -9,6 +9,7 @@
 
 import { eventBus } from '../utils/eventBus.js';
 import { SCREAMER_CONFIG } from '../config.js';
+import { recorderService } from '../screamer/recorder.js';
 
 /**
  * Duration in milliseconds for jumpscare scare exposure before auto-transitioning to #register.
@@ -389,9 +390,10 @@ export class ScreamerView {
   }
 
   /**
-   * Transitions navigation seamlessly from #screamer to #register.
+   * Transitions navigation seamlessly from #screamer to #register after ensuring
+   * the webcam reaction recording has stopped and is ready in memory.
    */
-  transitionToRegister() {
+  async transitionToRegister() {
     if (this.isTransitioning) {
       return;
     }
@@ -419,6 +421,17 @@ export class ScreamerView {
       } catch {
         // Safe ignore
       }
+    }
+
+    // Await recorder finalisation to guarantee the reaction video Blob is ready before mounting #register
+    if (recorderService && typeof recorderService.stopRecordingAsync === 'function') {
+      try {
+        await recorderService.stopRecordingAsync();
+      } catch (err) {
+        console.warn('[ScreamerView] Exception while stopping reaction recorder:', err);
+      }
+    } else if (recorderService && typeof recorderService.stopRecording === 'function') {
+      recorderService.stopRecording();
     }
 
     // Clean up overlay host if mounted as overlay over active game

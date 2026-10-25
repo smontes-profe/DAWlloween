@@ -72,6 +72,12 @@ export class ReactionRecorderService {
     /** @type {boolean} Recording activity flag */
     this.isRecording = false;
 
+    /** @type {boolean} Media processing flag (waiting for onstop and blob generation) */
+    this.isProcessing = false;
+
+    /** @type {Function[]} Resolvers awaiting asynchronous stop completion */
+    this.stopResolvers = [];
+
     /** @type {number|null} Scheduled stop timer handle */
     this.recordingTimeoutId = null;
 
@@ -89,6 +95,15 @@ export class ReactionRecorderService {
    */
   isSupported() {
     return typeof MediaRecorder !== 'undefined';
+  }
+
+  /**
+   * Checks whether recording or media encoding is currently pending/processing.
+   *
+   * @returns {boolean} True if actively recording or processing chunks into a Blob.
+   */
+  isPending() {
+    return this.isRecording || this.isProcessing;
   }
 
   /**
@@ -165,6 +180,7 @@ export class ReactionRecorderService {
    */
   finaliseRecording(durationMs) {
     this.isRecording = false;
+    this.isProcessing = false;
 
     if (this.recordedChunks.length > 0) {
       try {
@@ -185,6 +201,8 @@ export class ReactionRecorderService {
             timestamp: Date.now()
           });
         }
+
+        this.notifyStopResolvers(this.currentVideoBlob);
       } catch (err) {
         console.warn('[ReactionRecorderService] Failed to construct Blob from recorded chunks:', err);
         this.engageFallback('Blob construction failed');
@@ -201,6 +219,7 @@ export class ReactionRecorderService {
    */
   engageFallback(reason = 'unknown') {
     this.isRecording = false;
+    this.isProcessing = false;
     let fallbackDataUrl = null;
 
     if (captureService && typeof captureService.captureReactionSnapshot === 'function') {
@@ -220,10 +239,29 @@ export class ReactionRecorderService {
         timestamp: Date.now()
       });
     }
+
+    this.notifyStopResolvers(null);
   }
 
   /**
-   * Stops the active video recording.
+   * Notifies and clears all resolvers waiting for asynchronous stop recording completion.
+   *
+   * @param {Blob|null} blob - Finalised video Blob or null if fallback.
+   */
+  notifyStopResolvers(blob) {
+    const resolvers = [...this.stopResolvers];
+    this.stopResolvers = [];
+    for (const resolver of resolvers) {
+      try {
+        resolver(blob);
+      } catch {
+        // Safe ignore
+      }
+    }
+  }
+
+  /**
+   * Stops the active video recording synchronously triggering MediaRecorder stop.
    */
   stopRecording() {
     if (this.recordingTimeoutId !== null) {
@@ -237,13 +275,67 @@ export class ReactionRecorderService {
 
     if (this.isRecording && this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
       try {
+        this.isRecording = false;
+        this.isProcessing = true;
         this.mediaRecorder.stop();
+        return;
       } catch (error) {
         console.warn('[ReactionRecorderService] Exception while stopping MediaRecorder:', error);
       }
     }
 
     this.isRecording = false;
+    this.isProcessing = false;
+    this.notifyStopResolvers(this.currentVideoBlob);
+  }
+
+  /**
+   * Stops the active video recording asynchronously, returning a Promise that resolves
+   * only after the browser finishes emitting onstop and constructing the final Blob.
+   *
+   * @param {number} [timeoutMs=2000] - Safety guard timeout in milliseconds.
+   * @returns {Promise<Blob|null>} Resolves with the video Blob or null on fallback.
+   */
+  stopRecordingAsync(timeoutMs = 2000) {
+    return new Promise((resolve) => {
+      // If already finished and not processing, resolve immediately
+      if (!this.isRecording && !this.isProcessing) {
+        resolve(this.currentVideoBlob);
+        return;
+      }
+
+      let timeoutTimerId = null;
+      const resolver = (blob) => {
+        if (timeoutTimerId !== null) {
+          if (typeof window !== 'undefined' && typeof window.clearTimeout === 'function') {
+            window.clearTimeout(timeoutTimerId);
+          } else if (typeof clearTimeout === 'function') {
+            clearTimeout(timeoutTimerId);
+          }
+          timeoutTimerId = null;
+        }
+        resolve(blob);
+      };
+
+      this.stopResolvers.push(resolver);
+
+      // Trigger MediaRecorder stop if active
+      if (this.isRecording) {
+        this.stopRecording();
+      }
+
+      // Safety fallback timer to prevent infinite waiting if browser stalls onstop
+      const scheduleTimer = typeof window !== 'undefined' && typeof window.setTimeout === 'function'
+        ? window.setTimeout
+        : (typeof setTimeout === 'function' ? setTimeout : null);
+
+      if (scheduleTimer) {
+        timeoutTimerId = scheduleTimer(() => {
+          this.isProcessing = false;
+          this.notifyStopResolvers(this.currentVideoBlob);
+        }, timeoutMs);
+      }
+    });
   }
 
   /**
@@ -317,6 +409,8 @@ export class ReactionRecorderService {
     this.recordedChunks = [];
     this.fallbackSnapshotUrl = null;
     this.isRecording = false;
+    this.isProcessing = false;
+    this.notifyStopResolvers(null);
   }
 }
 

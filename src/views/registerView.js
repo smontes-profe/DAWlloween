@@ -80,8 +80,14 @@ export class RegisterView {
     /** @type {boolean} */
     this.hasVideo = false;
 
+    /** @type {boolean} Indicates video is currently packaging chunks into Blob */
+    this.isProcessingVideo = false;
+
     /** @type {boolean} */
     this.isFallbackSnapshot = false;
+
+    /** @type {Function|null} EventBus subscription for video recorded event */
+    this.unsubscribeVideoRecorded = null;
 
     /** @type {((event: Event) => void)|null} */
     this.boundRestartHandler = null;
@@ -101,13 +107,19 @@ export class RegisterView {
   mount(container) {
     this.container = container;
 
-    // Retrieve active in-memory video recording or fallback to snapshot/avatar
+    // Retrieve active in-memory video recording, check processing state, or fallback
     if (recorderService && typeof recorderService.hasRecording === 'function' && recorderService.hasRecording()) {
       this.videoUrl = recorderService.getVideoUrl();
       this.hasVideo = true;
+      this.isProcessingVideo = false;
+    } else if (recorderService && typeof recorderService.isPending === 'function' && recorderService.isPending()) {
+      this.videoUrl = null;
+      this.hasVideo = false;
+      this.isProcessingVideo = true;
     } else {
       this.videoUrl = null;
       this.hasVideo = false;
+      this.isProcessingVideo = false;
     }
 
     // Retrieve active in-memory snapshot or provide fallback avatar
@@ -117,6 +129,13 @@ export class RegisterView {
     } else {
       this.snapshotDataUrl = generateFallbackAvatar();
       this.isFallbackSnapshot = true;
+    }
+
+    // Subscribe to video-recorded event to dynamically update the Polaroid card once ready
+    if (eventBus && typeof eventBus.subscribe === 'function') {
+      this.unsubscribeVideoRecorded = eventBus.subscribe('screamer:video-recorded', (data) => {
+        this.handleVideoRecorded(data);
+      });
     }
 
     // Render DOM layout
@@ -211,6 +230,15 @@ export class RegisterView {
     // Display progress toast
     if (alerts && typeof alerts.info === 'function') {
       alerts.info('Enviando reacción al más allá...', 'Guardando Reacción', 3500);
+    }
+
+    // If video recording is still processing chunks into a Blob, await finalisation
+    if (this.isProcessingVideo && recorderService && typeof recorderService.stopRecordingAsync === 'function') {
+      try {
+        await recorderService.stopRecordingAsync();
+      } catch (err) {
+        console.warn('[RegisterView] Exception awaiting reaction recorder:', err);
+      }
     }
 
     // Extract in-memory media references
@@ -346,6 +374,11 @@ export class RegisterView {
       this.container = null;
     }
 
+    if (this.unsubscribeVideoRecorded) {
+      this.unsubscribeVideoRecorded();
+      this.unsubscribeVideoRecorded = null;
+    }
+
     if (recorderService && typeof recorderService.clearRecording === 'function') {
       recorderService.clearRecording();
     }
@@ -356,7 +389,105 @@ export class RegisterView {
     this.snapshotDataUrl = null;
     this.videoUrl = null;
     this.hasVideo = false;
+    this.isProcessingVideo = false;
     this.isFallbackSnapshot = false;
+  }
+
+  /**
+   * Handles screamer:video-recorded event to dynamically update the Polaroid card.
+   *
+   * @param {Object} data - Video recorded event payload.
+   */
+  handleVideoRecorded(data) {
+    this.isProcessingVideo = false;
+    if (data && !data.isFallback && data.url) {
+      this.videoUrl = data.url;
+      this.hasVideo = true;
+    } else if (data && data.isFallback) {
+      this.hasVideo = false;
+      this.videoUrl = null;
+      if (data.fallbackDataUrl) {
+        this.snapshotDataUrl = data.fallbackDataUrl;
+        this.isFallbackSnapshot = true;
+      }
+    }
+    this.updateVisualMedia();
+  }
+
+  /**
+   * Dynamically updates the visual media inside the Polaroid card frame and status badge.
+   */
+  updateVisualMedia() {
+    if (!this.container) {
+      return;
+    }
+    const photoFrame = this.container.querySelector('.polaroid-card__photo-frame');
+    const badge = this.container.querySelector('#photo-status-badge');
+
+    if (photoFrame) {
+      photoFrame.innerHTML = this.getVisualMediaMarkup();
+    }
+    if (badge) {
+      const badgeInfo = this.getBadgeInfo();
+      badge.className = badgeInfo.className;
+      badge.textContent = badgeInfo.text;
+    }
+  }
+
+  /**
+   * Computes the display text and CSS classes for the Polaroid badge.
+   *
+   * @returns {{ text: string, className: string }}
+   */
+  getBadgeInfo() {
+    if (this.hasVideo && this.videoUrl) {
+      return {
+        text: '🎬 Vídeo Reacción',
+        className: 'polaroid-card__badge polaroid-card__badge--video'
+      };
+    }
+    if (this.isProcessingVideo) {
+      return {
+        text: '⏳ Procesando Vídeo...',
+        className: 'polaroid-card__badge polaroid-card__badge--processing'
+      };
+    }
+    if (this.isFallbackSnapshot) {
+      return {
+        text: '🎃 Avatar Fantasmal',
+        className: 'polaroid-card__badge polaroid-card__badge--fallback'
+      };
+    }
+    return {
+      text: '📸 Foto Reacción',
+      className: 'polaroid-card__badge'
+    };
+  }
+
+  /**
+   * Generates HTML markup for the Polaroid visual media frame.
+   *
+   * @returns {string} HTML markup string.
+   */
+  getVisualMediaMarkup() {
+    if (this.hasVideo && this.videoUrl) {
+      return `<video src="${this.videoUrl}"
+                autoplay loop muted playsinline
+                class="polaroid-card__video"
+                id="reaction-video-preview"
+                aria-label="Vídeo de tu reacción"></video>`;
+    }
+    if (this.isProcessingVideo) {
+      return `<div class="polaroid-card__loading" id="reaction-loading-preview" aria-live="polite">
+                <div class="polaroid-card__spinner" aria-hidden="true"></div>
+                <p class="polaroid-card__loading-text">Inmortalizando tu terror...</p>
+                <span class="polaroid-card__loading-subtext">Un momento mientras se revela tu reacción</span>
+              </div>`;
+    }
+    return `<img src="${this.snapshotDataUrl}"
+              alt="Reacción capturada durante el susto de DAWlloween"
+              class="polaroid-card__photo"
+              id="reaction-photo-preview" />`;
   }
 
   /**
@@ -365,30 +496,8 @@ export class RegisterView {
    * @returns {string} HTML markup string.
    */
   template() {
-    let badgeText;
-    let badgeClass;
-
-    if (this.hasVideo && this.videoUrl) {
-      badgeText = '🎬 Vídeo Reacción';
-      badgeClass = 'polaroid-card__badge polaroid-card__badge--video';
-    } else if (this.isFallbackSnapshot) {
-      badgeText = '🎃 Avatar Fantasmal';
-      badgeClass = 'polaroid-card__badge polaroid-card__badge--fallback';
-    } else {
-      badgeText = '📸 Foto Reacción';
-      badgeClass = 'polaroid-card__badge';
-    }
-
-    const visualMediaMarkup = (this.hasVideo && this.videoUrl)
-      ? `<video src="${this.videoUrl}"
-                autoplay loop muted playsinline
-                class="polaroid-card__video"
-                id="reaction-video-preview"
-                aria-label="Vídeo de tu reacción"></video>`
-      : `<img src="${this.snapshotDataUrl}"
-              alt="Reacción capturada durante el susto de DAWlloween"
-              class="polaroid-card__photo"
-              id="reaction-photo-preview" />`;
+    const badgeInfo = this.getBadgeInfo();
+    const visualMediaMarkup = this.getVisualMediaMarkup();
 
     return `
       <section class="register-view" aria-labelledby="register-view-heading">
@@ -404,8 +513,8 @@ export class RegisterView {
 
             <div class="polaroid-card__caption">
               <h2 class="polaroid-card__title">DAWlloween 2026</h2>
-              <span class="${badgeClass}" id="photo-status-badge">
-                ${badgeText}
+              <span class="${badgeInfo.className}" id="photo-status-badge">
+                ${badgeInfo.text}
               </span>
             </div>
           </article>

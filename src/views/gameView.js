@@ -331,9 +331,9 @@ export class GameView {
       });
     }
 
-    // Initialise synchronous reaction webcam capture and video recording listeners
-    if (captureService && typeof captureService.initialiseCaptureListener === 'function') {
-      captureService.initialiseCaptureListener();
+    // Clear any stale snapshot and initialise video recording listener
+    if (captureService && typeof captureService.clearSnapshot === 'function') {
+      captureService.clearSnapshot();
     }
     if (recorderService && typeof recorderService.initialiseRecorderListener === 'function') {
       recorderService.initialiseRecorderListener();

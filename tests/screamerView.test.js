@@ -160,7 +160,7 @@ describe('ScreamerView Unit Tests (US2.1 / T3)', () => {
     assert.strictEqual(view.videoElement.volume, 1.0);
   });
 
-  it('should set an auto-transition timer to #register matching DEFAULT_SCREAMER_DURATION_MS exposure', () => {
+  it('should set an auto-transition timer to #register matching DEFAULT_SCREAMER_DURATION_MS exposure', async () => {
     const { mockWindow, container } = createMockDom();
     global.window = mockWindow;
 
@@ -177,6 +177,7 @@ describe('ScreamerView Unit Tests (US2.1 / T3)', () => {
     try {
       // Execute the scheduled timeout callback
       mockWindow._lastTimeoutFn();
+      await Promise.resolve();
 
       assert.strictEqual(mockWindow.location.hash, '#register');
       assert.strictEqual(transitionEventPublished, true);
@@ -185,7 +186,7 @@ describe('ScreamerView Unit Tests (US2.1 / T3)', () => {
     }
   });
 
-  it('should transition immediately to #register on Escape key press', () => {
+  it('should transition immediately to #register on Escape key press', async () => {
     const { mockWindow, container } = createMockDom();
     global.window = mockWindow;
 
@@ -199,6 +200,7 @@ describe('ScreamerView Unit Tests (US2.1 / T3)', () => {
       key: 'Escape',
       preventDefault: () => { defaultPrevented = true; }
     });
+    await Promise.resolve();
 
     assert.strictEqual(defaultPrevented, true);
     assert.strictEqual(mockWindow.location.hash, '#register');

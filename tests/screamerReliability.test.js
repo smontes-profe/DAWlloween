@@ -238,7 +238,7 @@ describe('Jumpscare Activation Reliability Unit Tests (US5.2 / T1)', () => {
     assert.strictEqual(mockWindow.location.hash, '#play');
   });
 
-  it('should switch to 3000ms exposure timer once video emits play event', () => {
+  it('should switch to 3000ms exposure timer once video emits play event', async () => {
     const { mockWindow, container, mockVideo } = createReliabilityDom();
     global.window = mockWindow;
 
@@ -255,6 +255,7 @@ describe('Jumpscare Activation Reliability Unit Tests (US5.2 / T1)', () => {
 
     // Trigger exposure timeout -> should navigate to #register
     mockWindow._triggerTimeout(view.transitionTimeoutId);
+    await Promise.resolve();
     assert.strictEqual(mockWindow.location.hash, '#register');
   });
 
@@ -342,7 +343,7 @@ describe('Jumpscare Activation Reliability Unit Tests (US5.2 / T1)', () => {
     }
   });
 
-  it('should ignore Space, Enter, and background clicks during jumpscare to prevent accidental skips', () => {
+  it('should ignore Space, Enter, and background clicks during jumpscare to prevent accidental skips', async () => {
     const { mockWindow, container } = createReliabilityDom();
     global.window = mockWindow;
 
@@ -361,6 +362,7 @@ describe('Jumpscare Activation Reliability Unit Tests (US5.2 / T1)', () => {
 
     // 3. Simulate Escape press (accessibility)
     keydownListeners[0]({ key: 'Escape', preventDefault() {} });
+    await Promise.resolve();
     assert.strictEqual(mockWindow.location.hash, '#register', 'Escape must transition to register');
   });
 

@@ -196,4 +196,19 @@ describe('ReactionRecorderService Unit Tests (US2.4 / T7)', () => {
     assert.strictEqual(service.getVideoUrl(), null);
     assert.strictEqual(service.hasRecording(), false);
   });
+
+  it('should report isPending() while recording or processing and resolve stopRecordingAsync()', async () => {
+    assert.strictEqual(service.isPending(), false);
+
+    const mockStream = new MockMediaStream();
+    service.startRecording({ stream: mockStream });
+    assert.strictEqual(service.isPending(), true);
+
+    const stopPromise = service.stopRecordingAsync();
+    const finalBlob = await stopPromise;
+
+    assert.ok(finalBlob instanceof Blob);
+    assert.strictEqual(service.isPending(), false);
+    assert.strictEqual(service.hasRecording(), true);
+  });
 });
