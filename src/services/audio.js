@@ -103,6 +103,7 @@ export class AudioManager {
       eventBus.subscribe('game:weapon-reload-start', () => this.playReloadStart()),
       eventBus.subscribe('game:weapon-reloaded', () => this.playReloadComplete()),
       eventBus.subscribe('game:projectile-hit', () => this.playHit()),
+      eventBus.subscribe('game:player-hit', () => this.playPlayerDamage()),
       eventBus.subscribe('screamer:play-sound', () => this.playScreamer()),
       eventBus.subscribe('audio:toggle-mute', (data) => {
         if (data && typeof data.isMuted === 'boolean') {
@@ -307,6 +308,43 @@ export class AudioManager {
 
     osc.start(now);
     osc.stop(now + 0.12);
+  }
+
+  /**
+   * Synthesises a visceral impact thud and distorted rumble for player damage sustained in combat.
+   */
+  playPlayerDamage() {
+    if (!this.ctx || !this.masterGain || this.isMutedState) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const duration = 0.22;
+
+      // Heavy visceral impact tone (140Hz downward sweep to 35Hz)
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.exponentialRampToValueAtTime(35, now + duration);
+
+      // Lowpass muffling filter for concussive thud
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(320, now);
+      filter.frequency.exponentialRampToValueAtTime(70, now + duration);
+
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.7, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.masterGain);
+
+      osc.start(now);
+      osc.stop(now + duration);
+    } catch (err) {
+      console.warn('[AudioManager] Error playing player damage sound:', err);
+    }
   }
 
   /**

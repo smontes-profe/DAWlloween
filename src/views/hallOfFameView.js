@@ -131,6 +131,9 @@ export class HallOfFameView {
     this.boundGridClickHandler = null;
 
     /** @type {((event: KeyboardEvent) => void)|null} */
+    this.boundGridKeyHandler = null;
+
+    /** @type {((event: KeyboardEvent) => void)|null} */
     this.boundModalKeyHandler = null;
 
     /** @type {Function|null} */
@@ -357,19 +360,47 @@ export class HallOfFameView {
     }
 
     const gridContainer = this.container.querySelector('#hall-grid-container');
-    if (gridContainer && typeof gridContainer.addEventListener === 'function' && !this.boundGridClickHandler) {
-      this.boundGridClickHandler = (event) => {
-        const deleteBtn = event.target.closest('[data-action="delete"]');
-        if (deleteBtn) {
-          event.preventDefault();
-          event.stopPropagation();
-          const id = deleteBtn.getAttribute('data-id');
-          const nickname = deleteBtn.getAttribute('data-nickname');
-          const card = deleteBtn.closest('.reaction-card');
-          this.openDeleteConfirmationModal(id, nickname, card);
-        }
-      };
-      gridContainer.addEventListener('click', this.boundGridClickHandler);
+    if (gridContainer && typeof gridContainer.addEventListener === 'function') {
+      if (!this.boundGridClickHandler) {
+        this.boundGridClickHandler = (event) => {
+          const deleteBtn = event.target.closest('[data-action="delete"]');
+          if (deleteBtn) {
+            event.preventDefault();
+            event.stopPropagation();
+            const id = deleteBtn.getAttribute('data-id');
+            const nickname = deleteBtn.getAttribute('data-nickname');
+            const card = deleteBtn.closest('.reaction-card');
+            this.openDeleteConfirmationModal(id, nickname, card);
+            return;
+          }
+
+          const card = event.target.closest('.reaction-card');
+          if (card) {
+            event.preventDefault();
+            const id = card.getAttribute('data-id');
+            this.openMediaModal(id);
+          }
+        };
+        gridContainer.addEventListener('click', this.boundGridClickHandler);
+      }
+
+      if (!this.boundGridKeyHandler) {
+        this.boundGridKeyHandler = (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            const deleteBtn = event.target.closest('[data-action="delete"]');
+            if (deleteBtn) {
+              return;
+            }
+            const card = event.target.closest('.reaction-card');
+            if (card) {
+              event.preventDefault();
+              const id = card.getAttribute('data-id');
+              this.openMediaModal(id);
+            }
+          }
+        };
+        gridContainer.addEventListener('keydown', this.boundGridKeyHandler);
+      }
     }
   }
 
@@ -495,7 +526,7 @@ export class HallOfFameView {
       : '';
 
     return `
-      <article class="reaction-card" data-id="${id}">
+      <article class="reaction-card" data-id="${id}" tabindex="0" role="button" aria-label="Ampliar reacción de ${nickname}">
         <div class="reaction-card__media-container">
           ${mediaMarkup}
           ${badgeMarkup}
@@ -807,7 +838,125 @@ export class HallOfFameView {
   }
 
   /**
-   * Closes and removes the confirmation modal dialog.
+   * Opens an accessible video or photo enlargement modal dialog.
+   *
+   * @param {string|number} id - Record ID to enlarge.
+   */
+  openMediaModal(id) {
+    this.closeModal();
+
+    const reaction = this.reactions.find((r) => String(r.id) === String(id));
+    if (!reaction) {
+      return;
+    }
+
+    const nickname = sanitizeText(reaction.nickname || 'Anónimo');
+    const timestamp = formatRelativeDate(reaction.created_at);
+    const hasVideo = Boolean(reaction.video_url);
+    const mediaUrl = hasVideo ? reaction.video_url : (reaction.photo_url || '');
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop media-modal-backdrop';
+    backdrop.id = 'modal-media-backdrop';
+
+    const dialog = document.createElement('div');
+    dialog.className = 'modal-dialog media-modal-dialog panel-surface';
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'media-modal-title');
+
+    // Header with title, timestamp and close button
+    const header = document.createElement('div');
+    header.className = 'media-modal-header';
+
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'media-modal-header__info';
+
+    const title = document.createElement('h2');
+    title.id = 'media-modal-title';
+    title.className = 'media-modal-title';
+    title.textContent = `Reacción de ${nickname}`;
+
+    const time = document.createElement('time');
+    time.className = 'media-modal-timestamp';
+    if (reaction.created_at) {
+      time.setAttribute('datetime', reaction.created_at);
+    }
+    time.textContent = timestamp;
+
+    infoDiv.appendChild(title);
+    infoDiv.appendChild(time);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.id = 'btn-media-modal-close';
+    closeBtn.className = 'btn-modal-close';
+    closeBtn.setAttribute('aria-label', 'Cerrar ampliación');
+    closeBtn.innerHTML = '&times;';
+
+    header.appendChild(infoDiv);
+    header.appendChild(closeBtn);
+
+    // Body with media
+    const body = document.createElement('div');
+    body.className = 'media-modal-body';
+
+    if (hasVideo) {
+      const video = document.createElement('video');
+      video.className = 'media-modal-player';
+      video.src = mediaUrl;
+      video.autoplay = true;
+      video.loop = true;
+      video.playsInline = true;
+      video.controls = true;
+      video.preload = 'auto';
+      video.setAttribute('title', `Vídeo de reacción de ${nickname}`);
+      body.appendChild(video);
+    } else {
+      const img = document.createElement('img');
+      img.className = 'media-modal-image';
+      img.src = mediaUrl;
+      img.alt = `Fotografía de reacción de ${nickname}`;
+      body.appendChild(img);
+    }
+
+    dialog.appendChild(header);
+    dialog.appendChild(body);
+    backdrop.appendChild(dialog);
+
+    if (typeof document !== 'undefined' && document.body) {
+      document.body.appendChild(backdrop);
+    }
+    this.activeModal = backdrop;
+
+    // Close on close button click
+    closeBtn.addEventListener('click', () => {
+      this.closeModal();
+    });
+    if (typeof closeBtn.focus === 'function') {
+      closeBtn.focus();
+    }
+
+    // Close on backdrop click outside dialog
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) {
+        this.closeModal();
+      }
+    });
+
+    // Close on Escape key
+    this.boundModalKeyHandler = (e) => {
+      if (e.key === 'Escape') {
+        this.closeModal();
+      }
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('keydown', this.boundModalKeyHandler);
+    }
+  }
+
+  /**
+   * Closes and removes any active modal dialog (media enlargement or deletion confirmation).
    */
   closeModal() {
     if (this.boundModalKeyHandler && typeof document !== 'undefined') {
@@ -816,6 +965,14 @@ export class HallOfFameView {
     }
 
     if (this.activeModal) {
+      const video = this.activeModal.querySelector('video');
+      if (video && typeof video.pause === 'function') {
+        try {
+          video.pause();
+          video.src = '';
+        } catch (_) {}
+      }
+
       if (typeof this.activeModal.remove === 'function') {
         this.activeModal.remove();
       } else if (this.activeModal.parentNode) {
@@ -901,8 +1058,13 @@ export class HallOfFameView {
       }
 
       const gridContainer = this.container.querySelector('#hall-grid-container');
-      if (gridContainer && typeof gridContainer.removeEventListener === 'function' && this.boundGridClickHandler) {
-        gridContainer.removeEventListener('click', this.boundGridClickHandler);
+      if (gridContainer && typeof gridContainer.removeEventListener === 'function') {
+        if (this.boundGridClickHandler) {
+          gridContainer.removeEventListener('click', this.boundGridClickHandler);
+        }
+        if (this.boundGridKeyHandler) {
+          gridContainer.removeEventListener('keydown', this.boundGridKeyHandler);
+        }
       }
 
       this.container = null;
@@ -911,6 +1073,7 @@ export class HallOfFameView {
     this.boundRefreshHandler = null;
     this.boundAdminLogoutHandler = null;
     this.boundGridClickHandler = null;
+    this.boundGridKeyHandler = null;
     this.boundRecordDeletedHandler = null;
   }
 }

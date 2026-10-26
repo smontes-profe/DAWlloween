@@ -43,7 +43,7 @@ export class GameView {
     /** @type {HTMLElement|null} */
     this.healthBox = null;
     /** @type {HTMLElement|null} */
-    this.healthBarFill = null;
+    this.healthTokens = null;
     /** @type {HTMLElement|null} */
     this.healthLabel = null;
     /** @type {HTMLElement|null} */
@@ -63,6 +63,10 @@ export class GameView {
     this.boundUserGesture = null;
     /** @type {Function|null} */
     this.unsubscribeAmmo = null;
+    /** @type {HTMLElement|null} */
+    this.reloadWarning = null;
+    /** @type {Function|null} */
+    this.unsubscribeReloadStart = null;
     /** @type {Function|null} */
     this.unsubscribeMute = null;
     /** @type {Function|null} */
@@ -123,34 +127,29 @@ export class GameView {
     const statsCluster = document.createElement('div');
     statsCluster.className = 'game-hud__stats';
 
-    // Player Health Meter
+    // Player Health Meter (5 Discrete Gothic Tokens - US6.2 / T4)
     const healthBox = document.createElement('div');
     healthBox.className = 'hud-health';
     healthBox.setAttribute('role', 'status');
-    healthBox.setAttribute('aria-label', 'Salud del jugador: 100%');
+    healthBox.setAttribute('aria-label', 'Salud del jugador: 5 de 5 PV');
 
-    const healthIcon = document.createElement('span');
-    healthIcon.className = 'hud-health__icon';
-    healthIcon.setAttribute('aria-hidden', 'true');
-    healthIcon.textContent = '❤️';
+    const healthTokens = document.createElement('div');
+    healthTokens.className = 'hud-health__tokens';
 
-    const healthBarTrack = document.createElement('div');
-    healthBarTrack.className = 'hud-health__track';
-
-    const healthBarFill = document.createElement('div');
-    healthBarFill.className = 'hud-health__fill';
-    if (healthBarFill.style) {
-      healthBarFill.style.width = '100%';
+    // Build 5 gothic skull tokens
+    for (let i = 0; i < 5; i += 1) {
+      const token = document.createElement('span');
+      token.className = 'hud-token';
+      token.setAttribute('aria-hidden', 'true');
+      token.textContent = '💀';
+      healthTokens.appendChild(token);
     }
-
-    healthBarTrack.appendChild(healthBarFill);
 
     const healthLabel = document.createElement('span');
     healthLabel.className = 'hud-health__label';
-    healthLabel.textContent = '100%';
+    healthLabel.textContent = '5 / 5';
 
-    healthBox.appendChild(healthIcon);
-    healthBox.appendChild(healthBarTrack);
+    healthBox.appendChild(healthTokens);
     healthBox.appendChild(healthLabel);
 
     // Ammunition Box
@@ -232,9 +231,18 @@ export class GameView {
     hudActions.appendChild(audioToggleBtn);
     hudActions.appendChild(retreatBtn);
     hudTop.appendChild(hudActions);
-    hud.appendChild(hudTop);
-
     arenaWrapper.appendChild(hud);
+
+    // Prominent High-Contrast Flashing Reload Warning (US6.3 / T6)
+    const reloadWarning = document.createElement('div');
+    reloadWarning.id = 'hud-reload-warning';
+    reloadWarning.className = 'hud-reload-warning';
+    reloadWarning.setAttribute('role', 'alert');
+    reloadWarning.setAttribute('aria-live', 'assertive');
+    reloadWarning.setAttribute('aria-hidden', 'true');
+    reloadWarning.textContent = '¡Recarga! (pulsar espacio)';
+    arenaWrapper.appendChild(reloadWarning);
+
     viewWrapper.appendChild(arenaWrapper);
     container.appendChild(viewWrapper);
 
@@ -254,7 +262,7 @@ export class GameView {
     this.canvas = canvas;
     this.videoElement = video;
     this.healthBox = healthBox;
-    this.healthBarFill = healthBarFill;
+    this.healthTokens = healthTokens;
     this.healthLabel = healthLabel;
     this.statsCluster = statsCluster;
     this.timerContainer = timerContainer;
@@ -263,6 +271,7 @@ export class GameView {
     this.ammoCylinder = ammoCylinder;
     this.ammoLabel = ammoLabel;
     this.audioToggleBtn = audioToggleBtn;
+    this.reloadWarning = reloadWarning;
     this.retreatBtn = retreatBtn;
 
     // Initialise and start ambient sound track
@@ -300,9 +309,20 @@ export class GameView {
         }
       });
 
+      this.unsubscribeReloadStart = eventBus.subscribe('game:weapon-reload-start', () => {
+        if (this.reloadWarning) {
+          this.reloadWarning.classList.remove('hud-reload-warning--visible');
+          this.reloadWarning.setAttribute('aria-hidden', 'true');
+        }
+      });
+
       this.unsubscribeHealth = eventBus.subscribe('game:health-updated', (data) => {
-        if (data && typeof data.health === 'number') {
-          this.updateHealth(data.health, data.maxHealth || 100);
+        if (data) {
+          const current = typeof data.current === 'number' ? data.current : data.health;
+          const max = typeof data.max === 'number' ? data.max : (data.maxHealth || 5);
+          if (typeof current === 'number') {
+            this.updateHealth(current, max);
+          }
         }
       });
 
@@ -383,33 +403,49 @@ export class GameView {
   }
 
   /**
-   * Update the player health indicator on the HUD.
+   * Update the player health indicator on the HUD using 5 discrete gothic tokens.
    *
-   * @param {number} currentHealth - Current player health value.
-   * @param {number} [maxHealth=100] - Maximum possible health.
+   * @param {number} currentHealth - Current player health value (0 to 5, or legacy percentage 0-100).
+   * @param {number} [maxHealth=5] - Maximum possible health (defaults to 5 discrete HP).
    */
-  updateHealth(currentHealth, maxHealth = 100) {
-    if (!this.healthBarFill || !this.healthLabel) {
+  updateHealth(currentHealth, maxHealth = 5) {
+    if (!this.healthBox || !this.healthLabel) {
       return;
     }
 
-    const safeMax = Math.max(1, Number(maxHealth) || 100);
-    const safeCurrent = Math.max(0, Math.min(Number(currentHealth) || 0, safeMax));
-    const percentage = Math.round((safeCurrent / safeMax) * 100);
+    const safeMax = Math.max(1, Number(maxHealth) || 5);
+    const safeCurrent = Math.max(0, Number(currentHealth) || 0);
 
-    if (this.healthBarFill.style) {
-      this.healthBarFill.style.width = `${percentage}%`;
-    }
-    this.healthLabel.textContent = `${percentage}%`;
+    // Map percentage values (> 5) down to 0-5 scale defensively if legacy callers invoke with percentage
+    const discreteMax = safeMax > 5 ? 5 : safeMax;
+    const discreteCurrent = safeMax > 5
+      ? Math.round((safeCurrent / safeMax) * 5)
+      : Math.min(safeCurrent, discreteMax);
 
-    if (this.healthBox) {
-      this.healthBox.setAttribute('aria-label', `Salud del jugador: ${percentage}%`);
-      this.healthBox.classList.remove('hud-health--critical', 'hud-health--warning');
-      if (percentage <= 25) {
-        this.healthBox.classList.add('hud-health--critical');
-      } else if (percentage <= 50) {
-        this.healthBox.classList.add('hud-health--warning');
+    const tokens = this.healthTokens
+      ? this.healthTokens.querySelectorAll('.hud-token')
+      : this.healthBox.querySelectorAll('.hud-token');
+
+    tokens.forEach((token, index) => {
+      if (index < discreteCurrent) {
+        token.classList.remove('hud-token--empty');
+      } else {
+        token.classList.add('hud-token--empty');
       }
+    });
+
+    this.healthLabel.textContent = `${discreteCurrent} / ${discreteMax}`;
+
+    this.healthBox.setAttribute(
+      'aria-label',
+      `Salud del jugador: ${discreteCurrent} de ${discreteMax} PV`
+    );
+
+    this.healthBox.classList.remove('hud-health--critical', 'hud-health--warning');
+    if (discreteCurrent <= 1) {
+      this.healthBox.classList.add('hud-health--critical');
+    } else if (discreteCurrent <= 2) {
+      this.healthBox.classList.add('hud-health--warning');
     }
   }
 
@@ -440,6 +476,17 @@ export class GameView {
     } else {
       this.ammoLabel.textContent = `${currentRounds} / ${maxRounds}`;
       this.ammoLabel.classList.remove('hud-ammo__label--reloading');
+    }
+
+    // Toggle prominent high-contrast flashing reload prompt (US6.3 / T6)
+    if (this.reloadWarning) {
+      if (currentRounds === 0 && !isReloading) {
+        this.reloadWarning.classList.add('hud-reload-warning--visible');
+        this.reloadWarning.setAttribute('aria-hidden', 'false');
+      } else {
+        this.reloadWarning.classList.remove('hud-reload-warning--visible');
+        this.reloadWarning.setAttribute('aria-hidden', 'true');
+      }
     }
   }
 
@@ -527,6 +574,11 @@ export class GameView {
     if (typeof this.unsubscribeAmmo === 'function') {
       this.unsubscribeAmmo();
       this.unsubscribeAmmo = null;
+    }
+
+    if (typeof this.unsubscribeReloadStart === 'function') {
+      this.unsubscribeReloadStart();
+      this.unsubscribeReloadStart = null;
     }
 
     if (typeof this.unsubscribeHealth === 'function') {

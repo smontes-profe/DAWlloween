@@ -10,7 +10,7 @@
 import { EntityFactory, Player } from './entities.js';
 import { Weapon } from './weapon.js';
 import { eventBus } from '../utils/eventBus.js';
-import { SCREAMER_CONFIG } from '../config.js';
+import { SCREAMER_CONFIG, GAME_CONFIG } from '../config.js';
 
 /**
  * Game engine lifecycle states.
@@ -112,6 +112,28 @@ export class GameEngine {
     this.isClimaxTriggered = false;
     this.climaxHaltTimeoutId = null;
     this.unsubscribeTransitionComplete = null;
+
+    /** Visual screen shake and crimson flash feedback timers (US6.2 / T3) */
+    this.screenShakeTimer = 0;
+    this.screenShakeIntensity = 0;
+    this.screenShakeDuration = 0.25;
+    this.screenFlashTimer = 0;
+    this.screenFlashDuration = 0.2;
+  }
+
+  /**
+   * Triggers visual screen shake and crimson damage flash upon sustaining damage.
+   *
+   * @param {number} [shakeDuration=0.25] - Screen shake duration in seconds.
+   * @param {number} [shakeIntensity=8] - Screen shake pixel displacement magnitude.
+   * @param {number} [flashDuration=0.2] - Crimson screen flash duration in seconds.
+   */
+  triggerDamageFeedback(shakeDuration = 0.25, shakeIntensity = 8, flashDuration = 0.2) {
+    this.screenShakeDuration = shakeDuration;
+    this.screenShakeTimer = shakeDuration;
+    this.screenShakeIntensity = shakeIntensity;
+    this.screenFlashDuration = flashDuration;
+    this.screenFlashTimer = flashDuration;
   }
 
   /**
@@ -174,11 +196,15 @@ export class GameEngine {
     if (!event || !event.code || this.isClimaxTriggered) return;
 
     const code = event.code;
+    const key = event.key;
     // Strict WASD mapping; arrow keys are explicitly excluded
     if (code === 'KeyW' || code === 'KeyA' || code === 'KeyS' || code === 'KeyD') {
       this.activeKeys.add(code);
-    } else if (code === 'KeyR') {
-      // Manual reload trigger
+    } else if (code === 'KeyR' || code === 'Space' || key === ' ' || key === 'Spacebar') {
+      if (typeof event.preventDefault === 'function') {
+        event.preventDefault();
+      }
+      // Manual reload trigger via KeyR or Spacebar (US6.3 / T5)
       if (this.weapon && typeof this.weapon.startReload === 'function') {
         this.weapon.startReload();
       }
@@ -567,6 +593,14 @@ export class GameEngine {
     // 0. Advance total session elapsed time
     this.gameElapsedTime += deltaTime;
 
+    // Update visual damage feedback timers (US6.2 / T3)
+    if (this.screenShakeTimer > 0) {
+      this.screenShakeTimer = Math.max(0, this.screenShakeTimer - deltaTime);
+    }
+    if (this.screenFlashTimer > 0) {
+      this.screenFlashTimer = Math.max(0, this.screenFlashTimer - deltaTime);
+    }
+
     // 0.1. Update weapon reload and fire rate throttle timers
     if (this.weapon && typeof this.weapon.update === 'function') {
       this.weapon.update(deltaTime);
@@ -648,7 +682,9 @@ export class GameEngine {
         // Check if enemy touches player
         if (this.player && this.player.isAlive && typeof enemy.checkCollision === 'function') {
           if (enemy.checkCollision(this.player)) {
-            const damage = enemy.damage || 25;
+            const damage = typeof enemy.damage === 'number'
+              ? enemy.damage
+              : ((typeof GAME_CONFIG !== 'undefined' && GAME_CONFIG.damagePerHit) ? GAME_CONFIG.damagePerHit : 1);
             let playerDefeated = false;
             if (typeof this.player.takeDamage === 'function') {
               playerDefeated = this.player.takeDamage(damage);
@@ -660,6 +696,15 @@ export class GameEngine {
               }
             }
 
+            // Immediately destroy the colliding enemy on impact (US6.2 / T3)
+            enemy.isAlive = false;
+            if (typeof enemy.takeDamage === 'function') {
+              enemy.takeDamage(enemy.health || 1);
+            }
+
+            // Trigger visual screen shake and damage flash feedback
+            this.triggerDamageFeedback();
+
             if (eventBus && typeof eventBus.publish === 'function') {
               eventBus.publish('game:player-hit', {
                 enemy,
@@ -667,10 +712,16 @@ export class GameEngine {
                 damage,
                 playerDefeated
               });
+              eventBus.publish('game:health-updated', {
+                current: this.player.health,
+                health: this.player.health,
+                max: this.player.maxHealth ?? 5,
+                maxHealth: this.player.maxHealth ?? 5
+              });
             }
 
-            // Climax Trigger: Player defeat
-            if (playerDefeated && !this.isClimaxTriggered) {
+            // Climax Trigger: Player defeat (0 HP)
+            if ((playerDefeated || this.player.health <= 0) && !this.isClimaxTriggered) {
               this.triggerClimax('player_defeat', 0);
               return;
             }
@@ -750,6 +801,17 @@ export class GameEngine {
 
     const ctx = this.ctx;
 
+    // Apply visual screen shake translation if active
+    const isShaking = this.screenShakeTimer > 0 && this.screenShakeIntensity > 0;
+    if (isShaking) {
+      ctx.save();
+      const progress = this.screenShakeTimer / (this.screenShakeDuration || 0.25);
+      const intensity = this.screenShakeIntensity * Math.min(progress, 1);
+      const offsetX = (Math.random() * 2 - 1) * intensity;
+      const offsetY = (Math.random() * 2 - 1) * intensity;
+      ctx.translate(offsetX, offsetY);
+    }
+
     // 1. Clear and render atmospheric Halloween arena background
     ctx.save();
     ctx.fillStyle = '#0d0914'; // Dark gothic arena background
@@ -794,6 +856,19 @@ export class GameEngine {
     // 3. Render Player entity with directional torchlight beam
     if (this.player && typeof this.player.render === 'function') {
       this.player.render(ctx);
+    }
+
+    if (isShaking) {
+      ctx.restore();
+    }
+
+    // Render crimson damage flash overlay
+    if (this.screenFlashTimer > 0) {
+      ctx.save();
+      const flashAlpha = Math.min(0.4, (this.screenFlashTimer / (this.screenFlashDuration || 0.2)) * 0.4);
+      ctx.fillStyle = `rgba(220, 20, 60, ${flashAlpha})`;
+      ctx.fillRect(0, 0, this.width, this.height);
+      ctx.restore();
     }
 
     // 4. Render custom animated crosshair cursor
@@ -859,6 +934,16 @@ export class GameEngine {
     if (this.weapon && typeof this.weapon.publishAmmoState === 'function') {
       this.weapon.publishAmmoState();
     }
+
+    if (eventBus && typeof eventBus.publish === 'function' && this.player) {
+      eventBus.publish('game:health-updated', {
+        current: this.player.health,
+        health: this.player.health,
+        max: this.player.maxHealth ?? 5,
+        maxHealth: this.player.maxHealth ?? 5
+      });
+    }
+
     this.scheduleNextFrame();
   }
 

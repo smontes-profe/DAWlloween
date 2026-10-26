@@ -6,6 +6,8 @@
  * Language Standards: UK English (en-GB).
  */
 
+import { GAME_CONFIG } from '../config.js';
+
 /**
  * Normalises a 2D vector [x, y] to have a length of 1 if its magnitude is non-zero.
  * Prevents faster diagonal movement (the 1.414x diagonal speed problem).
@@ -174,9 +176,11 @@ export class Player extends Entity {
 
     /** Secondary accent colour for torchlight/glow */
     this.glowColour = options.glowColour || '#39ff14'; // Ectoplasm green
-    /** Player health or hit points */
-    this.health = options.health ?? 100;
-    this.maxHealth = options.maxHealth ?? 100;
+    /** Player health or hit points (5 discrete HP as per US6.2) */
+    const defaultHp = (typeof GAME_CONFIG !== 'undefined' && GAME_CONFIG.initialHp) ? GAME_CONFIG.initialHp : 5;
+    const defaultMaxHp = (typeof GAME_CONFIG !== 'undefined' && GAME_CONFIG.maxHp) ? GAME_CONFIG.maxHp : 5;
+    this.health = options.health ?? defaultHp;
+    this.maxHealth = options.maxHealth ?? defaultMaxHp;
   }
 
   /**

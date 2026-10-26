@@ -187,7 +187,7 @@ describe('Player Entity Unit Tests', () => {
     assert.strictEqual(player.colour, '#ff7518');
     assert.strictEqual(player.glowColour, '#39ff14');
     assert.strictEqual(player.type, 'player');
-    assert.strictEqual(player.health, 100);
+    assert.strictEqual(player.health, 5);
   });
 
   it('should adjust orientation angle towards target coordinate with lookAt', () => {

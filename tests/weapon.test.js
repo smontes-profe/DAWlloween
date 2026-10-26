@@ -61,8 +61,8 @@ describe('Weapon Mechanics Unit Tests (US1.4 / T12)', () => {
     assert.strictEqual(weapon.currentRounds, 4);
   });
 
-  it('should automatically trigger reload cooldown when 6th round is spent', () => {
-    const weapon = new Weapon({ currentRounds: 1 });
+  it('should automatically trigger reload cooldown when 6th round is spent if autoReload is configured', () => {
+    const weapon = new Weapon({ currentRounds: 1, autoReload: true });
     let reloadStartEvent = null;
 
     const unsubscribe = eventBus.subscribe('game:weapon-reload-start', (payload) => {

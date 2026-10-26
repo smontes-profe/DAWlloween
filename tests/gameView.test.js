@@ -157,7 +157,9 @@ describe('GameView Unit Tests', () => {
     assert.equal(view.statsCluster.className, 'game-hud__stats');
 
     assert.ok(view.healthBox, 'Health box container should exist in stats cluster');
-    assert.equal(view.healthLabel.textContent, '100%');
+    assert.equal(view.healthLabel.textContent, '5 / 5');
+    const initialHealthTokens = view.healthBox.querySelectorAll('.hud-token');
+    assert.equal(initialHealthTokens.length, 5, 'Should mount 5 discrete gothic tokens');
 
     assert.ok(view.timerDigits);
     assert.equal(view.timerDigits.textContent, '00:05');
@@ -169,25 +171,46 @@ describe('GameView Unit Tests', () => {
     assert.equal(bullets.length, 6);
   });
 
-  it('should reactively update health meter display when health events are published (US5.2 / T0)', () => {
+  it('should render 5 discrete gothic tokens and update display upon health events (US6.2 / T4)', () => {
     const view = new GameView();
     view.mount(mockEnv.container);
 
-    // Initial state: 100%
-    assert.equal(view.healthLabel.textContent, '100%');
-    assert.equal(view.healthBarFill.style.width, '100%');
+    const tokens = view.healthBox.querySelectorAll('.hud-token');
+    assert.equal(tokens.length, 5, 'Initial DOM should contain 5 health tokens');
 
-    // Update to 45% (warning tier)
-    view.updateHealth(45, 100);
-    assert.equal(view.healthLabel.textContent, '45%');
-    assert.equal(view.healthBarFill.style.width, '45%');
+    // Initial state: 5 / 5
+    assert.equal(view.healthLabel.textContent, '5 / 5');
+    assert.equal(view.healthBox.getAttribute('aria-label'), 'Salud del jugador: 5 de 5 PV');
+    tokens.forEach((t) => assert.equal(t.classList.contains('hud-token--empty'), false));
+
+    // Update to 4 PV (1 empty token)
+    view.updateHealth(4, 5);
+    assert.equal(view.healthLabel.textContent, '4 / 5');
+    assert.equal(tokens[0].classList.contains('hud-token--empty'), false);
+    assert.equal(tokens[3].classList.contains('hud-token--empty'), false);
+    assert.equal(tokens[4].classList.contains('hud-token--empty'), true);
+    assert.equal(view.healthBox.classList.contains('hud-health--warning'), false);
+    assert.equal(view.healthBox.classList.contains('hud-health--critical'), false);
+
+    // Update to 2 PV (warning tier)
+    view.updateHealth(2, 5);
+    assert.equal(view.healthLabel.textContent, '2 / 5');
+    assert.equal(tokens[1].classList.contains('hud-token--empty'), false);
+    assert.equal(tokens[2].classList.contains('hud-token--empty'), true);
     assert.equal(view.healthBox.classList.contains('hud-health--warning'), true);
     assert.equal(view.healthBox.classList.contains('hud-health--critical'), false);
 
-    // Update to 15% (critical tier) via EventBus
-    eventBus.publish('game:health-updated', { health: 15, maxHealth: 100 });
-    assert.equal(view.healthLabel.textContent, '15%');
-    assert.equal(view.healthBarFill.style.width, '15%');
+    // Update to 1 PV (critical tier) via EventBus
+    eventBus.publish('game:health-updated', { current: 1, max: 5 });
+    assert.equal(view.healthLabel.textContent, '1 / 5');
+    assert.equal(tokens[0].classList.contains('hud-token--empty'), false);
+    assert.equal(tokens[1].classList.contains('hud-token--empty'), true);
+    assert.equal(view.healthBox.classList.contains('hud-health--critical'), true);
+
+    // Update to 0 PV (all empty) via EventBus with legacy payload shape
+    eventBus.publish('game:health-updated', { health: 0, maxHealth: 5 });
+    assert.equal(view.healthLabel.textContent, '0 / 5');
+    tokens.forEach((t) => assert.equal(t.classList.contains('hud-token--empty'), true));
     assert.equal(view.healthBox.classList.contains('hud-health--critical'), true);
   });
 
@@ -253,6 +276,43 @@ describe('GameView Unit Tests', () => {
     view.updateAmmo(0, 6, true);
     assert.equal(view.ammoLabel.textContent, 'RECARGANDO...');
     assert.equal(view.ammoLabel.classList.contains('hud-ammo__label--reloading'), true);
+  });
+
+  it('should toggle prominent flashing reload warning when ammunition reaches 0 and dismiss on reload (US6.3 / T6)', () => {
+    const view = new GameView();
+    view.mount(mockEnv.container);
+
+    assert.ok(view.reloadWarning, 'Reload warning element should exist in DOM');
+    assert.equal(view.reloadWarning.textContent, '¡Recarga! (pulsar espacio)');
+    assert.equal(view.reloadWarning.classList.contains('hud-reload-warning--visible'), false);
+    assert.equal(view.reloadWarning.getAttribute('aria-hidden'), 'true');
+
+    // Ammunition partially depleted (3 rounds): warning should remain hidden
+    view.updateAmmo(3, 6, false);
+    assert.equal(view.reloadWarning.classList.contains('hud-reload-warning--visible'), false);
+
+    // Ammunition completely empty (0 rounds, not reloading yet): warning should become visible
+    view.updateAmmo(0, 6, false);
+    assert.equal(view.reloadWarning.classList.contains('hud-reload-warning--visible'), true);
+    assert.equal(view.reloadWarning.getAttribute('aria-hidden'), 'false');
+
+    // Manual reload initiated via method call: warning must dismiss immediately
+    view.updateAmmo(0, 6, true);
+    assert.equal(view.reloadWarning.classList.contains('hud-reload-warning--visible'), false);
+    assert.equal(view.reloadWarning.getAttribute('aria-hidden'), 'true');
+
+    // Empty again: warning becomes visible
+    view.updateAmmo(0, 6, false);
+    assert.equal(view.reloadWarning.classList.contains('hud-reload-warning--visible'), true);
+
+    // Manual reload initiated via EventBus game:weapon-reload-start: warning must dismiss immediately
+    eventBus.publish('game:weapon-reload-start', { currentRounds: 0, maxRounds: 6 });
+    assert.equal(view.reloadWarning.classList.contains('hud-reload-warning--visible'), false);
+    assert.equal(view.reloadWarning.getAttribute('aria-hidden'), 'true');
+
+    // Replenished to full (6 rounds): warning stays hidden
+    view.updateAmmo(6, 6, false);
+    assert.equal(view.reloadWarning.classList.contains('hud-reload-warning--visible'), false);
   });
 
   it('should toggle audio mute with accessible attributes and publish audio:toggle-mute event', () => {

@@ -21,17 +21,20 @@ export class Weapon {
    * @param {number} [options.currentRounds=6] - Initial available rounds.
    * @param {number} [options.fireThrottle=0.20] - Minimum duration in seconds between consecutive shots.
    * @param {number} [options.reloadDuration=1.80] - Duration in seconds required to fully reload the cylinder.
+   * @param {boolean} [options.autoReload=false] - Whether to automatically reload when cylinder is spent.
    */
   constructor({
     maxRounds = 6,
     currentRounds = 6,
     fireThrottle = 0.20,
-    reloadDuration = 1.80
+    reloadDuration = 1.80,
+    autoReload = false
   } = {}) {
     this.maxRounds = Math.max(1, Number(maxRounds));
     this.currentRounds = Math.min(this.maxRounds, Math.max(0, Number(currentRounds)));
     this.fireThrottle = Math.max(0.05, Number(fireThrottle));
     this.reloadDuration = Math.max(0.5, Number(reloadDuration));
+    this.autoReload = Boolean(autoReload);
 
     /** Remaining cooldown before weapon can fire again */
     this.throttleTimer = 0;
@@ -52,7 +55,8 @@ export class Weapon {
 
   /**
    * Discharges a single round from the cylinder if conditions allow.
-   * Decrements round count, engages fire rate throttle, and initiates reload if depleted.
+   * Decrements round count, engages fire rate throttle, and blocks further shots when empty.
+   * Automatic reload is suppressed by default (US6.3 / T5).
    *
    * @returns {boolean} True if shot was discharged successfully; false otherwise.
    */
@@ -67,12 +71,21 @@ export class Weapon {
     // Publish ammo update notification
     this.publishAmmoState();
 
-    // Trigger automatic reload if cylinder is spent
-    if (this.currentRounds === 0) {
+    // Trigger automatic reload only if explicitly configured
+    if (this.currentRounds === 0 && this.autoReload) {
       this.startReload();
     }
 
     return true;
+  }
+
+  /**
+   * Alias for startReload() to trigger manual reload.
+   *
+   * @returns {boolean} True if reload started.
+   */
+  reload() {
+    return this.startReload();
   }
 
   /**

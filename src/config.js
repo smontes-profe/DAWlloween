@@ -56,6 +56,18 @@ export const ADMIN_CONFIG = {
 };
 
 /**
+ * Core gameplay balance parameters and player survival configurations.
+ */
+export const GAME_CONFIG = {
+  /** Maximum discrete Health Points (HP) for player survival */
+  maxHp: 5,
+  /** Initial discrete Health Points (HP) allocated to the player */
+  initialHp: 5,
+  /** Discrete Health Points lost per enemy contact */
+  damagePerHit: 1
+};
+
+/**
  * Jumpscare, reaction recording, and gameplay climax timing configuration.
  * Modify `durationMs` here to adjust the jumpscare exposure, webcam recording duration,
  * and background game continuation simultaneously.
