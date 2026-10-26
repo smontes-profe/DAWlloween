@@ -13,6 +13,7 @@ import { eventBus } from '../utils/eventBus.js';
 import { GameEngine } from '../game/engine.js';
 import { audioService } from '../services/audio.js';
 import { ScreamerView, screamerView } from './screamerView.js';
+import { SCREAMER_CONFIG } from '../config.js';
 
 /**
  * Game View component orchestrating the Canvas arena and HUD overlay.
@@ -299,7 +300,7 @@ export class GameView {
     }
 
     // Initialise and boot Canvas 2D Game Engine (5 seconds survival timer for agile testing)
-    this.engine = new GameEngine({ canvas, survivalDuration: 5 });
+    this.engine = new GameEngine({ canvas, survivalDuration: SCREAMER_CONFIG.timeForScare });
     this.engine.start();
 
     // Subscribe to EventBus updates

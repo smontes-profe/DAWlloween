@@ -81,6 +81,11 @@ export const SCREAMER_CONFIG = {
   durationMs: 3500,
 
   /**
+   * Time in seconds for the game to be in the jumpscare state.
+   */
+  timeForScare: 30,
+
+  /**
    * Emergency safety fallback timeout in milliseconds.
    * Guarantees transition to #register even if network or video decoding completely stalls.
    */
