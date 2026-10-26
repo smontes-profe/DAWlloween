@@ -153,6 +153,11 @@ describe('GameView Unit Tests', () => {
     assert.ok(video);
     assert.equal(video.id, 'camera-stream-preview');
 
+    assert.ok(mockEnv.container.querySelector('.game-hud'), 'HUD overlay should be appended inside container');
+    assert.ok(mockEnv.container.querySelector('.game-hud__top'), 'Top HUD bar should be appended inside HUD');
+    assert.ok(mockEnv.container.querySelector('.hud-health'), 'Health indicator should be in mounted container DOM');
+    assert.ok(mockEnv.container.querySelector('.hud-ammo'), 'Ammo cylinder should be in mounted container DOM');
+
     assert.ok(view.statsCluster, 'Stats cluster container should exist');
     assert.equal(view.statsCluster.className, 'game-hud__stats');
 

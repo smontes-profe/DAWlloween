@@ -231,6 +231,7 @@ export class GameView {
     hudActions.appendChild(audioToggleBtn);
     hudActions.appendChild(retreatBtn);
     hudTop.appendChild(hudActions);
+    hud.appendChild(hudTop);
     arenaWrapper.appendChild(hud);
 
     // Prominent High-Contrast Flashing Reload Warning (US6.3 / T6)
