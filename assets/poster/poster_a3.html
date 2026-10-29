@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Póster A3 - DAWlloween</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Creepster&family=Outfit:wght@400;600;800;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    /* -------------------------------------------------------------------------
+       A3 Print Configuration
+       A3 dimensions: 297mm x 420mm
+       ------------------------------------------------------------------------- */
+    @page {
+      size: A3 portrait;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #07050a;
+      color: #f6f4fa;
+      font-family: 'Outfit', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .poster {
+      width: 297mm;
+      height: 420mm;
+      position: relative;
+      background: radial-gradient(circle at 50% 30%, #1e1338 0%, #0c0817 65%, #050308 100%);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16mm 18mm 18mm 18mm;
+      border: 4mm solid #ff7518;
+      box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.9);
+    }
+
+    /* Eerie Background Image */
+    .poster-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.72;
+      mix-blend-mode: luminosity;
+      filter: contrast(1.15) brightness(0.9);
+      z-index: 1;
+    }
+
+    /* Dark vignette and atmospheric fog overlay */
+    .poster-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        to bottom,
+        rgba(7, 5, 10, 0.88) 0%,
+        rgba(7, 5, 10, 0.2) 25%,
+        rgba(7, 5, 10, 0.3) 60%,
+        rgba(7, 5, 10, 0.95) 100%
+      );
+      z-index: 2;
+    }
+
+    /* Foreground Content */
+    .poster-content {
+      position: relative;
+      z-index: 3;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      text-align: center;
+    }
+
+    /* Header Zone */
+    .poster-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6mm;
+    }
+
+    .tagline-sub {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 13pt;
+      color: #28fc74;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      text-shadow: 0 0 12px rgba(40, 252, 116, 0.8), 2px 2px 0px #000;
+      background: rgba(13, 10, 20, 0.75);
+      padding: 6px 20px;
+      border: 1px solid #28fc74;
+      border-radius: 4px;
+    }
+
+    .main-title {
+      font-family: 'Creepster', cursive;
+      font-size: 82pt;
+      line-height: 0.9;
+      color: #ff7518;
+      letter-spacing: 5px;
+      text-shadow: 
+        0 0 25px rgba(255, 117, 24, 0.9),
+        0 0 50px rgba(255, 30, 66, 0.6),
+        4px 4px 0px #000,
+        -3px -3px 0px #28fc74;
+      margin-top: 2mm;
+    }
+
+    .warning-box {
+      background: rgba(255, 30, 66, 0.15);
+      border: 2px dashed #ff1e42;
+      border-radius: 8px;
+      padding: 10px 24px;
+      margin-top: 2mm;
+      display: inline-block;
+      box-shadow: 0 0 20px rgba(255, 30, 66, 0.3);
+    }
+
+    .warning-text {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 900;
+      font-size: 20pt;
+      color: #ff3355;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      text-shadow: 0 0 10px rgba(255, 30, 66, 0.8);
+    }
+
+    /* Middle / Feature Zone */
+    .poster-body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5mm;
+      margin: auto 0;
+    }
+
+    .hero-punchline {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 26pt;
+      line-height: 1.25;
+      max-width: 220mm;
+      color: #ffffff;
+      text-shadow: 0 0 18px rgba(0, 0, 0, 0.9), 2px 2px 4px #000;
+    }
+
+    .hero-punchline span.accent-orange {
+      color: #ff944d;
+    }
+
+    .hero-punchline span.accent-green {
+      color: #28fc74;
+    }
+
+    .quote-box {
+      font-size: 14pt;
+      color: #b6b0c8;
+      font-style: italic;
+      background: rgba(7, 5, 10, 0.7);
+      padding: 8px 20px;
+      border-left: 4px solid #ff7518;
+      border-right: 4px solid #ff7518;
+      max-width: 190mm;
+    }
+
+    /* Footer / Call-To-Action Zone */
+    .poster-footer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      background: rgba(13, 10, 20, 0.88);
+      padding: 16px 24px;
+      border-radius: 10px;
+      border: 1px solid #2b2342;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+    }
+
+    .location-badge {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 11pt;
+      color: #ff944d;
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+    }
+
+    .footer-desc {
+      font-size: 13pt;
+      color: #b6b0c8;
+      line-height: 1.4;
+    }
+
+    .footer-desc strong {
+      color: #ffffff;
+    }
+
+    .arcade-hint {
+      display: inline-block;
+      margin-top: 8px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9pt;
+      color: #28fc74;
+      text-shadow: 0 0 8px rgba(40, 252, 116, 0.6);
+    }
+
+    /* Screen preview helper */
+    @media screen {
+      body {
+        padding: 40px 0;
+        background: #111;
+      }
+      .poster {
+        box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="poster">
+    <!-- Background Artwork -->
+    <img src="./dawlloween_poster.jpg" alt="DAWlloween Horror Poster Artwork" class="poster-bg">
+    
+    <!-- Atmospheric Contrast Overlay -->
+    <div class="poster-overlay"></div>
+
+    <!-- Visible Printed Layout -->
+    <div class="poster-content">
+      
+      <!-- HEADER -->
+      <div class="poster-header">
+        <div class="tagline-sub">👾 1º y 2º DAW Presentan 👾</div>
+        <h1 class="main-title">DAWLLOWEEN</h1>
+        <div class="warning-box">
+          <div class="warning-text">⚠️ ENTRA BAJO TU PROPIO RIESGO, MORTAL ⚠️</div>
+        </div>
+      </div>
+
+      <!-- MIDDLE CONTENT -->
+      <div class="poster-body">
+        <div class="hero-punchline">
+          ¿Crees que tus <span class="accent-orange">bugs</span> dan miedo?<br>
+          Espera a ver lo que acecha tras la pantalla.
+        </div>
+
+        <div class="quote-box">
+          «El servidor nunca duerme, los procesos no responden y tu supervivencia depende de tus reflejos frente a la pantalla.»
+        </div>
+      </div>
+
+      <!-- FOOTER -->
+      <div class="poster-footer">
+        <div class="location-badge">📍 AULA DE INFORMÁTICA · EDICIÓN HALLOWEEN</div>
+        <div class="footer-desc">
+          <strong>Desafío Arcade 2D de Supervivencia</strong><br>
+          Sobrevive a las oleadas de errores, esquiva el código maldito y aguanta hasta el final.<br>
+          <span class="arcade-hint">🎮 CONTROLES: RATÓN / TECLADO · [ESPACIO] PARA RECARGAR</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>
+
